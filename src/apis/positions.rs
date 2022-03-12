@@ -20,7 +20,8 @@ pub fn register(app: &mut Server<AppState>) {
     app.at("/positions/available").get(api_get_available_positions);
     app.at("/positions/:id").get(api_get_position);
     app.at("/positions").post(api_new_position);
-    app.at("/positions/by_group/:id").put(api_replace_by_group);
+    app.at("/positions/by_group/:id").put(api_replace_by_group)
+        .get(api_get_by_group);
 }
 
 // rust版本特有的API 获取一个用户可用的调查点
@@ -109,5 +110,24 @@ async fn api_replace_by_group(mut req: Request<AppState>) -> tide::Result {
         position.save(&db, None).await?;
         positions.push(position);
     }
+    Ok(json!(positions).into())
+}
+
+async fn api_get_by_group(mut req: Request<AppState>) -> tide::Result {
+    require_perm(&mut req, vec![1, 2, 3]).await?;
+    let group_id = req.param("id").unwrap().to_owned();
+    let state = req.state();
+    let db = state.db.to_owned();
+
+    if let None = Group::by_id(&db, &group_id.to_string()).await {
+        return Ok(json_response(404, json!({
+            "code": 4,
+            "message": {
+                "cn": "调查小组不存在",
+                "en": "Group not found"
+            }
+        })));
+    }
+    let positions = Position::by_group(&db, &group_id).await.unwrap();
     Ok(json!(positions).into())
 }
