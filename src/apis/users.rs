@@ -20,10 +20,12 @@ use crate::models::{SearchById, Session};
 use wither::Model;
 use crate::models::invitations::Invitation;
 use crate::models::users::User;
+use futures::StreamExt;
 
 pub fn register(app: &mut Server<AppState>) {
     info!("注册用户API");
     app.at("/users")
+        .get(api_get_users)
         .post(api_create_user);
     // .get(app_get_users);
     app.at("/users/check_email")
@@ -365,4 +367,20 @@ async fn api_create_inactive_user(mut req: Request<AppState>) -> tide::Result<Re
         })).into())
     }
 }
-// 没啦
+
+async fn api_get_users(req: Request<AppState>) -> tide::Result {
+    require_perm(&req, vec![3]).await?;
+    let state = req.state().to_owned();
+    let db = state.db.clone();
+    let users: Vec<_> = User::find(&db, None, None)
+        .await?
+        .collect()
+        .await;
+    let mut result = Vec::new();
+    for user in users {
+        if let Ok(user) = user {
+            result.push(user.to_response());
+        }
+    }
+    Ok(json!(result).into())
+}

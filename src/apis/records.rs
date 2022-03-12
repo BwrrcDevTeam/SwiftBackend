@@ -70,8 +70,9 @@ async fn api_get_records(req: tide::Request<AppState>) -> tide::Result {
     let db = state.db.to_owned();
     let query: RecordsQuery = req.query()?;
     let mut result = Vec::new();
-    let records: Vec<_> = Record::find(&db, query.to_filter(), None)
-        .await?
+    let records: Vec<_> = Record::find(&db, Some(query.to_filter()), None)
+        .await
+        .unwrap()
         .collect()
         .await;
     for record in records {

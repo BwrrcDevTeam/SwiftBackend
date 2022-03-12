@@ -71,10 +71,18 @@ async fn api_create_group(mut req: Request<AppState>) -> tide::Result {
         id: None,
         name: form.name,
         created_at: chrono::Utc::now().into(),
-        managers: vec![session.user.unwrap()],
+        managers: vec![session.user.to_owned().unwrap()],
         cover: None,
     };
     group.save(&db, None).await?;
+    let mut user = User::by_id(&db, &session.user.unwrap()).await.unwrap();
+    // 将用户加入群组
+    if let Some(ref mut groups) = user.groups {
+        groups.push(group.id.as_ref().unwrap().to_hex());
+    } else {
+        user.groups = Some(vec![group.id.as_ref().unwrap().to_hex()]);
+    }
+    user.save(&db, None).await?;
     Ok(json!(group).into())
 }
 

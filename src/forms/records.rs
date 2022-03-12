@@ -9,7 +9,7 @@ use crate::models::storage::Storage;
 use crate::models::users::User;
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct RecordsQuery {
     user: Option<String>,
     // 创建者

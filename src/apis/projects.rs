@@ -35,7 +35,7 @@ async fn api_get_projects(req: Request<AppState>) -> tide::Result {
     let mut result = Vec::new();
     for project in projects {
         if let Ok(project) = project {
-            result.push(project);
+            result.push(project.to_response());
         }
     }
     Ok(json!(result).into())
@@ -88,7 +88,7 @@ async fn api_create_project(mut req: Request<AppState>) -> tide::Result {
         set_running(&db, &mut project).await?;
     }
     project.save(&db, None).await?;
-    Ok(json!(project).into())
+    Ok(project.to_response().into())
 }
 
 
@@ -118,7 +118,7 @@ async fn api_get_project(req: Request<AppState>) -> tide::Result {
     let state = req.state();
     let db = state.db.clone();
     if let Some(project) = Project::by_id(&db, &id.to_string()).await {
-        Ok(json!(project).into())
+        Ok(project.to_response().into())
     } else {
         Ok(json_response(404, json!({
             "code": 4,
@@ -189,5 +189,5 @@ async fn api_update_project(mut req: Request<AppState>) -> tide::Result {
         project.duration = duration;
     }
     project.save(&db, None).await?;
-    Ok(json!(project).into())
+    Ok(project.to_response().into())
 }
