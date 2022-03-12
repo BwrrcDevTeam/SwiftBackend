@@ -5,6 +5,7 @@ use wither::Model;
 use serde::{Serialize, Deserialize};
 use serde_json::json;
 use crate::models::SearchById;
+use futures::StreamExt;
 
 #[derive(Debug, Model, Serialize, Deserialize, Clone)]
 #[model(collection_name = "users")]
@@ -40,6 +41,21 @@ impl User {
             groups: self.groups.clone(),
             avatar: self.avatar.clone(),
         })
+    }
+    pub async fn by_group(db: &Database, group: &String) -> Vec<Self> {
+        let filter = doc! {"groups": {"$elemMatch": group}};
+        let mut result = Vec::new();
+        let users: Vec<_> = User::find(db, Some(filter), None)
+            .await
+            .unwrap()
+            .collect()
+            .await;
+        for user in users {
+            if let Ok(user) = user {
+                result.push(user);
+            }
+        }
+        result
     }
 }
 

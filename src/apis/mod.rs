@@ -6,6 +6,7 @@ mod positions;
 mod groups;
 mod projects;
 mod storage;
+// mod data;
 
 use log::info;
 use tide::{Request, Server};
@@ -30,6 +31,7 @@ pub fn register(app: &mut Server<AppState>) {
     records::register(app);
     positions::register(app);
     groups::register(app);
+    storage::register(app);
 }
 
 

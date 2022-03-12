@@ -5,6 +5,7 @@ use crate::apis::{json_response, require_perm};
 use crate::AppState;
 use crate::models::{SearchById, Session};
 use crate::models::storage::Storage;
+use wither::Model;
 
 pub fn register(app: &mut Server<AppState>) {
     info!("注册API storage");
@@ -22,8 +23,9 @@ use async_std::stream::Stream;
 use async_std::task::{Context, Poll, ready};
 
 use std::pin::Pin;
+use std::str::FromStr;
 use futures::AsyncWriteExt;
-use serde::de::Unexpected::Option;
+use tide::http::Mime;
 
 #[derive(Debug)]
 pub struct BufferedBytesStream<T> {
@@ -65,8 +67,9 @@ fn random_filename(origin_ext: String) -> String {
 
 pub async fn api_upload(mut req: Request<AppState>) -> tide::Result {
     require_perm(&mut req, vec![0, 1, 2, 3]).await?;
-    let state = req.state();
+    let state = req.state().to_owned();
     let session: &Session = req.ext().unwrap();
+    let session = session.to_owned();
     let mime = req.content_type().unwrap();
     if mime.essence().to_string() == "multipart/form-data" {
         let boundary = mime.param("boundary").unwrap().to_string();
@@ -77,9 +80,9 @@ pub async fn api_upload(mut req: Request<AppState>) -> tide::Result {
             if field.name() != Some("file") {
                 continue;
             }
-            let mut file_name = field.filename().unwrap().to_string();
+            let file_name = field.file_name().unwrap().to_string();
             let ext = file_name.split(".").last().unwrap();
-            let local_path = state.config.storage.get_path(random_filename(ext.to_string())).unwrap();
+            let local_path = state.config.storage.get_path(random_filename(ext.to_string()));
             let mut output = async_std::fs::File::create(&local_path).await?;
             while let Some(chunk) = field.chunk().await? {
                 output.write_all(&chunk).await?;
@@ -91,11 +94,11 @@ pub async fn api_upload(mut req: Request<AppState>) -> tide::Result {
                 local_path,
                 mime_type: field.content_type().unwrap().to_string(),
                 created_at: chrono::Utc::now().into(),
-                owner: session.user.unwrap_or("Anonymous".to_string()),
+                owner: session.user.to_owned().unwrap_or("Anonymous".to_string()),
             });
         }
-        if let Some(storage) = storage {
-            let storage = state.db.create_storage(storage).await?;
+        if let Some(mut storage) = storage {
+            storage.save(&state.db, None).await?;
             Ok(json!(storage).into())
         } else {
             Ok(json_response(400, json!({ "code": 400, "message": {
@@ -120,13 +123,13 @@ pub async fn api_upload(mut req: Request<AppState>) -> tide::Result {
 
 async fn api_download_inline(req: Request<AppState>) -> tide::Result {
     let state = req.state();
-    let session: &Session = req.ext().unwrap();
+    // let session: &Session = req.ext().unwrap();
     let db = state.db.to_owned();
     let id = req.param("id").unwrap().to_owned();
     if let Some(storage) = Storage::by_id(&db, &id).await {
         if let Ok(body) = Body::from_file(storage.local_path).await {
             let mut resp = Response::new(200);
-            resp.set_content_type(storage.mime_type.to_owned());
+            resp.set_content_type(Mime::from_str(&*storage.mime_type.to_owned()).unwrap());
             resp.insert_header("Content-Disposition", format!("inline; filename={}", storage.filename));
             resp.insert_header("Cache-Control", "max-age=86400");
             resp.set_body(body);
@@ -153,13 +156,12 @@ async fn api_download_inline(req: Request<AppState>) -> tide::Result {
 
 async fn api_download_attachment(req: Request<AppState>) -> tide::Result {
     let state = req.state();
-    let session: &Session = req.ext().unwrap();
     let db = state.db.to_owned();
     let id = req.param("id").unwrap().to_owned();
     if let Some(storage) = Storage::by_id(&db, &id).await {
         if let Ok(body) = Body::from_file(storage.local_path).await {
             let mut resp = Response::new(200);
-            resp.set_content_type(storage.mime_type.to_owned());
+            resp.set_content_type(Mime::from_str(&*storage.mime_type.to_owned()).unwrap());
             resp.insert_header("Content-Disposition", format!("attachment; filename={}", storage.filename));
             resp.insert_header("Cache-Control", "max-age=86400");
             resp.set_body(body);
@@ -190,8 +192,8 @@ async fn api_delete(req: Request<AppState>) -> tide::Result {
     let db = state.db.to_owned();
     let id = req.param("id").unwrap().to_owned();
     if let Some(mut storage) = Storage::by_id(&db, &id).await {
-        if storage.owner == session.user.unwrap_or("Anonymous".to_string()) {
-            if let Ok(()) = std::fs::remove_file(&storage.local_path).await {
+        if &storage.owner == session.user.as_ref().unwrap_or(&"Anonymous".to_string()) {
+            if let Ok(()) = async_std::fs::remove_file(&storage.local_path).await {
                 if let Ok(..) = storage.delete(&db).await {
                     Ok(json!({ "code": 200, "message": {
                         "cn": "删除成功",
@@ -237,7 +239,7 @@ async fn api_delete(req: Request<AppState>) -> tide::Result {
 
 async fn api_download_inline_resized(req: Request<AppState>) -> tide::Result {
     let state = req.state();
-    let session: &Session = req.ext().unwrap();
+    // let session: &Session = req.ext().unwrap();
     let db = state.db.to_owned();
     let id = req.param("id").unwrap().to_owned();
     let width = req.param("width").unwrap().to_owned().parse::<u32>().unwrap_or(0);
@@ -247,7 +249,7 @@ async fn api_download_inline_resized(req: Request<AppState>) -> tide::Result {
             let image = image.resize_to_fill(width, height, image::imageops::FilterType::Triangle);
             let body = Body::from_bytes(image.into_bytes());
             let mut resp = Response::new(200);
-            resp.set_content_type(storage.mime_type.to_owned());
+            resp.set_content_type(Mime::from_str(&*storage.mime_type.to_owned()).unwrap());
             resp.insert_header("Content-Disposition", format!("inline; filename={}", storage.filename));
             resp.insert_header("Cache-Control", "max-age=86400");
             resp.set_body(body);
