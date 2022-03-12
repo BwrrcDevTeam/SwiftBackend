@@ -32,6 +32,7 @@ pub fn register(app: &mut Server<AppState>) {
     positions::register(app);
     groups::register(app);
     storage::register(app);
+    projects::register(app);
 }
 
 

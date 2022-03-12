@@ -5,6 +5,7 @@ use crate::errors::AppErrors;
 pub mod users;
 pub mod positions;
 pub mod groups;
+pub mod projects;
 
 pub fn try_into_object_id(id: String) -> Result<ObjectId, AppErrors> {
     match ObjectId::with_string(&id) {

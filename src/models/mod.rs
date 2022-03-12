@@ -6,6 +6,8 @@ pub mod inactive_users;
 pub mod drafts;
 pub mod positions;
 pub mod groups;
+pub mod records;
+pub mod projects;
 
 use wither::bson::{DateTime, doc, oid::ObjectId};
 use serde::{Serialize, Deserialize};
