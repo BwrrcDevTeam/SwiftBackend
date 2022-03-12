@@ -191,7 +191,7 @@ async fn api_delete(req: Request<AppState>) -> tide::Result {
     let session: &Session = req.ext().unwrap();
     let db = state.db.to_owned();
     let id = req.param("id").unwrap().to_owned();
-    if let Some(mut storage) = Storage::by_id(&db, &id).await {
+    if let Some(storage) = Storage::by_id(&db, &id).await {
         if &storage.owner == session.user.as_ref().unwrap_or(&"Anonymous".to_string()) {
             if let Ok(()) = async_std::fs::remove_file(&storage.local_path).await {
                 if let Ok(..) = storage.delete(&db).await {

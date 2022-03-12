@@ -1,4 +1,4 @@
-use futures::future::err;
+
 use serde_json::json;
 use wither::bson::doc;
 use wither::mongodb::Database;
@@ -7,7 +7,6 @@ use crate::forms::positions::UpdatePositionForm;
 use crate::models::SearchById;
 use crate::models::users::User;
 use serde::Deserialize;
-use futures::StreamExt;
 
 #[derive(Deserialize)]
 pub struct CreateGroupForm {
@@ -27,7 +26,7 @@ impl CreateGroupForm {
             })));
         }
         // 检查组名是否重复
-        let mut groups = db.collection("groups");
+        let groups = db.collection("groups");
         let count = groups.count_documents(Some(doc! {
             "name": self.name.clone()
         }), None).await;
@@ -64,7 +63,7 @@ impl UpdateGroupForm {
     pub async fn validate(&self, db: &Database) -> Result<(), AppErrors> {
         // 检查组名是否重复
         if let Some(name) = &self.name {
-            let mut groups = db.collection("groups");
+            let groups = db.collection("groups");
             let count = groups.count_documents(Some(doc! {
                 "name": name
             }), None).await;

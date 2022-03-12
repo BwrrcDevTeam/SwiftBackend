@@ -5,7 +5,6 @@ use crate::apis::{json_response, require_perm};
 use crate::AppState;
 use crate::forms::groups::{CreateGroupForm, UpdateGroupForm};
 use crate::models::groups::Group;
-use crate::models::invitations::Invitation;
 use crate::models::{SearchById, Session};
 use crate::models::users::User;
 use wither::Model;
@@ -161,7 +160,7 @@ async fn api_update_group(mut req: Request<AppState>) -> tide::Result {
     }
 }
 
-pub async fn api_delete_group_member(mut req: Request<AppState>) -> tide::Result {
+pub async fn api_delete_group_member(req: Request<AppState>) -> tide::Result {
     require_perm(&req, vec![2, 3]).await?;
     let state = req.state();
     let db = state.db.to_owned();
@@ -169,7 +168,7 @@ pub async fn api_delete_group_member(mut req: Request<AppState>) -> tide::Result
     let user_id = req.param("user_id").unwrap().to_owned();
     let group = Group::by_id(&db, &group_id).await;
     let session: &Session = req.ext().unwrap();
-    if let Some(mut group) = group {
+    if let Some(group) = group {
         // 如果目标是小组管理员 则不能删除
         if group.managers.contains(&user_id) {
             return Ok(json_response(400, json!({
