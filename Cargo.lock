@@ -88,6 +88,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ahash"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcb51a0695d8f838b1ee009b3fbf66bda078cd64590202a864a8f3e8c4315c47"
+dependencies = [
+ "getrandom 0.2.5",
+ "once_cell",
+ "version_check 0.9.4",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "0.7.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -506,6 +517,25 @@ dependencies = [
  "linked-hash-map",
  "rand 0.7.3",
  "serde",
+ "serde_json",
+ "uuid 0.8.2",
+]
+
+[[package]]
+name = "bson"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41539b5c502b7c4e7b8af8ef07e5c442fe79ceba62a2aad8e62bd589b9454745"
+dependencies = [
+ "ahash",
+ "base64 0.13.0",
+ "chrono",
+ "hex",
+ "indexmap",
+ "lazy_static",
+ "rand 0.8.5",
+ "serde",
+ "serde_bytes",
  "serde_json",
  "uuid 0.8.2",
 ]
@@ -1916,7 +1946,7 @@ dependencies = [
  "async-trait",
  "base64 0.11.0",
  "bitflags",
- "bson",
+ "bson 1.2.4",
  "chrono",
  "derivative",
  "err-derive",
@@ -2836,6 +2866,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_bytes"
+version = "0.11.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16ae07dd2f88a366f15bd0632ba725227018c69a1c8550a927324f8eb8368bb9"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.136"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3120,6 +3159,7 @@ dependencies = [
  "async-std",
  "async-trait",
  "badlog",
+ "bson 2.1.0",
  "chrono",
  "futures",
  "image 0.24.1",
@@ -3573,6 +3613,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 dependencies = [
  "getrandom 0.2.5",
+ "serde",
 ]
 
 [[package]]

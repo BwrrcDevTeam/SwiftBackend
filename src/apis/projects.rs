@@ -45,12 +45,10 @@ async fn api_get_running_project(req: Request<AppState>) -> tide::Result {
     require_perm(&req, vec![1, 2, 3]).await?;
     let state = req.state();
     let db = state.db.clone();
-    if let Ok(project) = Project::find_one(&db, Some(doc! {
-        "running": true
-    }), None).await {
-        Ok(json!(project).into())
+    if let Some(project) = Project::get_running_project(&db).await {
+        Ok(project.to_response().into())
     } else {
-        Ok(json_response(200, json!({})))
+        Ok(json!({}).into())
     }
 }
 

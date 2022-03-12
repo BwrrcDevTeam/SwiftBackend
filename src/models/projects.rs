@@ -1,7 +1,9 @@
 use wither::Model;
 use serde::{Deserialize, Serialize};
-use wither::bson::DateTime;
+use serde_json::json;
+use wither::bson::{DateTime, doc};
 use wither::bson::oid::ObjectId;
+use wither::mongodb::Database;
 use crate::models::SearchById;
 
 #[derive(Debug, Model, Serialize, Deserialize, Clone)]
@@ -19,3 +21,24 @@ pub struct Project {
 }
 
 impl SearchById for Project {}
+
+impl Project {
+    pub async fn get_running_project(db: &Database) -> Option<Project> {
+        let filter = doc! {"running": true};
+        if let Ok(project) = Project::find_one(db, filter, None).await {
+            project
+        } else {
+            None
+        }
+    }
+
+    pub fn to_response(self) -> serde_json::Value {
+        json!({
+            "id": self.id.unwrap().to_string(),
+            "title": self.title,
+            "start_time": self.start_time.timestamp(),
+            "duration": self.duration,
+            "running": self.running
+        })
+    }
+}

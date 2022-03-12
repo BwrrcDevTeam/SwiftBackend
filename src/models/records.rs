@@ -1,5 +1,6 @@
 use wither::Model;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use wither::bson::DateTime;
 use wither::bson::oid::ObjectId;
 use crate::models::SearchById;
@@ -25,3 +26,20 @@ pub struct Record {
 }
 
 impl SearchById for Record {}
+
+impl Record {
+    pub fn to_response(self) -> serde_json::Value {
+        json!({
+            "id": self.id.unwrap().to_string(),
+            "num": self.num,
+            "position": self.position,
+            "time": self.time.timestamp(),
+            "collaborators": self.collaborators,
+            "description": self.description,
+            "group": self.group,
+            "user": self.user,
+            "project": self.project,
+            "attachments": self.attachments,
+        })
+    }
+}

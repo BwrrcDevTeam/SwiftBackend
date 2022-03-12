@@ -26,7 +26,7 @@ lettre_email = "0.9.4"
 md5 = "0.7.0"
 futures = "0.3.21"
 multer = "2.0.2"
-
+bson = "2.1.0"
 [target.x86_64-unknown-linux-musl]
 # ln -s /usr/local/opt/musl-cross/bin/x86_64-linux-musl-gcc /usr/local/bin/musl-gcc
 linker = "musl-gcc"
