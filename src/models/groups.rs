@@ -3,6 +3,7 @@ use wither::bson::oid::ObjectId;
 use crate::models::SearchById;
 use wither::Model;
 use serde::{Serialize, Deserialize};
+use serde_json::{json, Value};
 
 
 #[derive(Model, Debug, Clone, Serialize, Deserialize)]
@@ -17,3 +18,15 @@ pub struct Group {
 }
 
 impl SearchById for Group {}
+
+impl Group {
+    pub fn to_response(self) -> Value {
+        json!({
+            "id": self.id.unwrap().to_hex(),
+            "name": self.name,
+            "created_at": self.created_at.timestamp(),
+            "managers": self.managers,
+            "cover": self.cover,
+        })
+    }
+}

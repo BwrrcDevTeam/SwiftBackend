@@ -10,7 +10,7 @@ use rand::Rng;
 use serde_json::{json, Value};
 use tide::{Request, Response, Server, StatusCode};
 
-use crate::apis::require_perm;
+use crate::apis::{json_response, require_perm};
 use crate::AppState;
 use crate::errors::AppErrors;
 use crate::forms::users::{CreateInactiveUserForm, LoginForm, NewInvitationForm, NewUserForm, NewUserFromInactive, UpdateUserForm};
@@ -216,7 +216,7 @@ async fn api_get_register_invitation(req: Request<AppState>) -> tide::Result<Res
     let state = req.state();
     let code = req.param("code").unwrap();
     if let Some(invitation) = Invitation::by_code(&state.db, code.to_string()).await {
-        Ok(json!(invitation).into())
+        Ok(invitation.to_response().into())
     } else {
         Err(AppErrors::ValidationError(json!({
             "code": 4,
@@ -233,7 +233,7 @@ async fn api_get_user(req: Request<AppState>) -> tide::Result<Response> {
     let state = req.state();
     let id = req.param("id").unwrap();
     if let Some(user) = User::by_id(&state.db, &id.to_string()).await {
-        Ok(json!(user).into())
+        Ok(user.to_response().into())
     } else {
         Err(AppErrors::ValidationError(json!({
             "code": 4,
@@ -288,7 +288,7 @@ async fn api_update_user(mut req: Request<AppState>) -> tide::Result<Response> {
 
         // 保存更改
         user.save(&db, None).await?;
-        Ok(json!(user.to_response()).into())
+        Ok(user.to_response().into())
     } else {
         Err(AppErrors::ValidationError(json!({
             "code": 4,
@@ -347,16 +347,13 @@ async fn api_create_inactive_user(mut req: Request<AppState>) -> tide::Result<Re
             // 发送失败
             // 删除用户
             user.delete(&db).await?;
-            let mut resp = Response::new(StatusCode::InternalServerError);
-            resp.set_content_type("application/json");
-            resp.set_body(json!({
+            Ok(json_response(500, json!({
                 "code": 1001,
                 "message": {
                     "cn": "邮件发送失败",
                     "en": "Failed to send email"
                 }
-            }));
-            Ok(resp)
+            })))
         }
     } else {
         Err(AppErrors::ValidationError(json!({

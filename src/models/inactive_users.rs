@@ -1,5 +1,6 @@
 use wither::Model;
 use serde::{Serialize, Deserialize};
+// use serde_json::json;
 use wither::bson::{DateTime, doc};
 use wither::bson::oid::ObjectId;
 use wither::mongodb::Database;
@@ -42,4 +43,15 @@ impl InactiveUser {
             avatar: None,
         }
     }
+    // pub fn to_response(self) -> serde_json::Value {
+    //     json!({
+    //         "id": self.id.unwrap().to_hex(),
+    //         "email": self.email,
+    //         "name": self.name,
+    //         "permission": self.permission,
+    //         "expire_at": self.expire_at.timestamp(),
+    //         "groups": self.groups,
+    //         "code": self.code,
+    //     })
+    // }
 }

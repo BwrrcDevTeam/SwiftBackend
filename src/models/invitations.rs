@@ -1,5 +1,6 @@
 use wither::Model;
 use serde::{Serialize, Deserialize};
+use serde_json::json;
 use wither::bson::{DateTime, doc};
 use wither::bson::oid::ObjectId;
 use wither::mongodb::Database;
@@ -23,5 +24,14 @@ impl Invitation {
         } else {
             None
         }
+    }
+    pub(crate) fn to_response(self) -> serde_json::Value {
+        json!({
+            "id": self.id.unwrap().to_hex(),
+            "code": self.code,
+            "expire_at": self.expire_at.timestamp(),
+            "groups": self.groups,
+            "permission": self.permission,
+        })
     }
 }

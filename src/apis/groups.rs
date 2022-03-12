@@ -53,7 +53,7 @@ async fn api_get_manageable_groups(req: Request<AppState>) -> tide::Result {
     let mut result = Vec::new();
     for group in groups {
         if let Ok(group) = group {
-            result.push(group.to_owned());
+            result.push(group.to_response());
         }
     }
     Ok(json!(result).into())
@@ -85,7 +85,7 @@ async fn api_get_group(req: Request<AppState>) -> tide::Result {
     let db = state.db.to_owned();
     let group_id = req.param("group_id").unwrap().to_owned();
     if let Some(group) = Group::by_id(&db, &group_id).await {
-        Ok(json!(group).into())
+        Ok(group.to_response().into())
     } else {
         Ok(json_response(404, json!({
             "code": 4,
@@ -121,10 +121,10 @@ async fn api_get_groups(req: Request<AppState>) -> tide::Result {
         .unwrap()
         .collect()
         .await;
-    let mut result: Vec<Group> = Vec::new();
+    let mut result = Vec::new();
     for group in groups {
         if let Ok(group) = group {
-            result.push(group.to_owned());
+            result.push(group.to_response());
         }
     }
     Ok(json!(result).into())
@@ -149,7 +149,7 @@ async fn api_update_group(mut req: Request<AppState>) -> tide::Result {
             group.managers = managers;
         }
         group.save(&db, None).await?;
-        Ok(json!(group).into())
+        Ok(group.to_response().into())
     } else {
         Ok(json_response(404, json!({
             "code": 4,
@@ -215,7 +215,7 @@ pub async fn api_delete_group_member(req: Request<AppState>) -> tide::Result {
                 }
             })));
         }
-        Ok(json!(group).into())
+        Ok(group.to_response().into())
     } else {
         Ok(json_response(404, json!({
             "code": 4,
