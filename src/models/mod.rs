@@ -14,6 +14,7 @@ use serde::{Serialize, Deserialize};
 use wither::Model;
 use wither::mongodb::Database;
 use wither::mongodb::options::{FindOneAndUpdateOptions, ReturnDocument};
+use crate::models::users::User;
 
 
 #[derive(Debug, Model, Serialize, Deserialize, Clone)]
@@ -42,7 +43,7 @@ pub struct SessionResponse {
     pub login: bool,
     pub permission: i8,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub user: Option<String>,
+    pub user: Option<serde_json::Value>,
     pub expire_at: i64,
     pub ip: String,
 }
@@ -72,14 +73,25 @@ impl Session {
         opts.return_document = Some(ReturnDocument::After);
         self.update(db, None, update, Some(opts)).await
     }
-    pub fn to_response(&self) -> SessionResponse {
-        SessionResponse {
-            fingerprint: self.fingerprint.clone(),
-            login: self.login,
-            permission: self.permission,
-            user: self.user.clone(),
-            expire_at: self.expire_at.timestamp(),
-            ip: self.ip.clone(),
+    pub async fn to_response(&self, db: &Database) -> SessionResponse {
+        if let Some(user_id) = &self.user {
+            SessionResponse {
+                fingerprint: self.fingerprint.clone(),
+                login: self.login,
+                permission: self.permission,
+                user: Some(User::by_id(db, user_id).await.unwrap().to_response()),
+                expire_at: self.expire_at.timestamp(),
+                ip: self.ip.clone(),
+            }
+        } else {
+            SessionResponse {
+                fingerprint: self.fingerprint.clone(),
+                login: self.login,
+                permission: self.permission,
+                user: None,
+                expire_at: self.expire_at.timestamp(),
+                ip: self.ip.clone(),
+            }
         }
     }
 }

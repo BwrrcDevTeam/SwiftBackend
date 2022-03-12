@@ -20,9 +20,11 @@ pub fn register(app: &mut Server<AppState>) {
     info!("注册API index");
     app.at("/").get(|req: Request<AppState>| async move {
         let session: &crate::models::Session = req.ext().unwrap();
+        let state = req.state().clone();
+        let db = state.db.clone();
         Ok(json!({
             "message": "Hello!!",
-            "session": session.to_response()
+            "session": session.to_response(&db).await
         }))
     });
     detector::register(app);

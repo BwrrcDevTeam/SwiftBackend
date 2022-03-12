@@ -100,7 +100,6 @@ async fn api_check_email(mut req: Request<AppState>) -> tide::Result<Response> {
         }
     })))?;
     if let Some(user) = User::by_email(&db, &email.to_string()).await {
-        dbg!(user.to_response());
         Ok(user.to_response().into())
     } else {
         let mut resp = Response::new(404);
