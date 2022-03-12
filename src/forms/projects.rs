@@ -45,7 +45,7 @@ impl UpdateProjectForm {
         if let Some(title) = &self.title {
             let projects = db.collection("projects");
             let count = projects.count_documents(Some(doc! { "title": title }), None).await.unwrap_or(0);
-            if count > 0 {
+            if count > 1 {
                 return Err(AppErrors::ValidationError(json!({
                     "code": 4,
                     "message": {
