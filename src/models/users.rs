@@ -43,7 +43,9 @@ impl User {
         })
     }
     pub async fn by_group(db: &Database, group: &String) -> Vec<Self> {
-        let filter = doc! {"groups": {"$elemMatch": group}};
+        let filter = doc! {"groups": {"$elemMatch": {
+            "$eq": group
+        }}};
         let mut result = Vec::new();
         let users: Vec<_> = User::find(db, Some(filter), None)
             .await
