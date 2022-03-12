@@ -3,16 +3,20 @@ use crate::apis::{json_response, require_perm};
 use crate::AppState;
 use crate::models::projects::Project;
 use futures::StreamExt;
+use log::info;
 use serde_json::json;
-use wither::bson::{DateTime, doc};
+use wither::bson::doc;
 use wither::mongodb::Database;
 use crate::forms::projects::{NewProjectForm, UpdateProjectForm};
 use crate::models::SearchById;
+use wither::Model;
+
 
 pub fn register(app: &mut Server<AppState>) {
+    info!("注册API projects");
     app.at("/projects").get(api_get_projects)
         .post(api_create_project);
-    app.at("/projects/running").get(api_get_running_projects);
+    app.at("/projects/running").get(api_get_running_project);
     app.at("/projects/:id").get(api_get_project)
         .delete(api_delete_project)
         .patch(api_update_project);
@@ -21,6 +25,8 @@ pub fn register(app: &mut Server<AppState>) {
 
 async fn api_get_projects(req: Request<AppState>) -> tide::Result {
     require_perm(&req, vec![1, 2, 3]).await?;
+    let state = req.state();
+    let db = state.db.clone();
     let projects: Vec<_> = Project::find(&db, None, None)
         .await
         .unwrap()
@@ -37,7 +43,9 @@ async fn api_get_projects(req: Request<AppState>) -> tide::Result {
 
 async fn api_get_running_project(req: Request<AppState>) -> tide::Result {
     require_perm(&req, vec![1, 2, 3]).await?;
-    if let Some(project) = Project::find_one(&db, Some(doc! {
+    let state = req.state();
+    let db = state.db.clone();
+    if let Ok(project) = Project::find_one(&db, Some(doc! {
         "running": true
     }), None).await {
         Ok(json!(project).into())
@@ -58,7 +66,7 @@ async fn set_running(db: &Database, project: &mut Project) -> tide::Result<()> {
     }, None).await?;
     // 再将当前项目的running设置为true
     project.running = true;
-    project.save(&db).await?;
+    project.save(&db, None).await?;
     Ok(())
 }
 
@@ -71,7 +79,10 @@ async fn api_create_project(mut req: Request<AppState>) -> tide::Result {
     let mut project = Project {
         id: None,
         title: form.title.clone(),
-        start_time: chrono::NaiveDateTime::from_timestamp(form.start_time as i64, 0).into(),
+        start_time: chrono::DateTime::from_utc(
+            chrono::NaiveDateTime::from_timestamp(form.start_time as i64, 0),
+            chrono::Utc,
+        ).into(),
         duration: form.duration,
         running: form.running.clone(),
     };
@@ -83,25 +94,25 @@ async fn api_create_project(mut req: Request<AppState>) -> tide::Result {
 }
 
 
-async fn api_get_running_projects(mut req: Request<AppState>) -> tide::Result {
-    require_perm(&req, vec![1, 2, 3]).await?;
-    let state = req.state();
-    let db = state.db.clone();
-    let mut projects: Vec<_> = Project::find(&db, Some(doc! {
-        "running": true
-    }), None)
-        .await
-        .unwrap()
-        .collect()
-        .await;
-    let mut result = Vec::new();
-    for project in projects {
-        if let Ok(project) = project {
-            result.push(project);
-        }
-    }
-    Ok(json!(result).into())
-}
+// async fn api_get_running_projects(req: Request<AppState>) -> tide::Result {
+//     require_perm(&req, vec![1, 2, 3]).await?;
+//     let state = req.state();
+//     let db = state.db.clone();
+//     let projects: Vec<_> = Project::find(&db, Some(doc! {
+//         "running": true
+//     }), None)
+//         .await
+//         .unwrap()
+//         .collect()
+//         .await;
+//     let mut result = Vec::new();
+//     for project in projects {
+//         if let Ok(project) = project {
+//             result.push(project);
+//         }
+//     }
+//     Ok(json!(result).into())
+// }
 
 async fn api_get_project(req: Request<AppState>) -> tide::Result {
     require_perm(&req, vec![1, 2, 3]).await?;
@@ -143,12 +154,12 @@ async fn api_delete_project(req: Request<AppState>) -> tide::Result {
 
 async fn api_update_project(mut req: Request<AppState>) -> tide::Result {
     require_perm(&req, vec![3]).await?;
-    let id = req.param("id").unwrap();
+    let id = req.param("id").unwrap().to_owned();
     let state = req.state();
     let db = state.db.clone();
     let form: UpdateProjectForm = req.body_json().await?;
     form.validate(&db).await?;
-    let project = Project::by_id(&db, &id.to_string()).await;
+    let project = Project::by_id(&db, &id).await;
     if project.is_none() {
         return Ok(json_response(404, json!({
             "code": 4,
@@ -171,7 +182,10 @@ async fn api_update_project(mut req: Request<AppState>) -> tide::Result {
     }
 
     if let Some(start_time) = form.start_time {
-        project.start_time = chrono::NaiveDateTime::from_timestamp(start_time as i64, 0).into();
+        project.start_time = chrono::DateTime::from_utc(
+            chrono::NaiveDateTime::from_timestamp(start_time as i64, 0),
+            chrono::Utc,
+        ).into();
     }
     if let Some(duration) = form.duration {
         project.duration = duration;

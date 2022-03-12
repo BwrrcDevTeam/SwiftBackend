@@ -2,6 +2,7 @@ use serde_json::json;
 use wither::bson::doc;
 use wither::mongodb::Database;
 use crate::errors::AppErrors;
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct NewProjectForm {
@@ -15,7 +16,7 @@ impl NewProjectForm {
     pub async fn validate(&self, db: &Database) -> Result<(), AppErrors> {
         // 检查有无重名项目
         let projects = db.collection("projects");
-        let count = projects.count_documents(Some(doc! { "title": self.title }), None).await.unwrap_or(0);
+        let count = projects.count_documents(Some(doc! { "title": self.title.clone() }), None).await.unwrap_or(0);
         if count > 0 {
             return Err(AppErrors::ValidationError(json!({
                 "code": 4,
