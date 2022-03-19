@@ -387,16 +387,6 @@ fn soft_nms(mut boxes: Vec<BBox>) -> Vec<BBox> {
     keep
 }
 
-fn filter(boxes: Vec<BBox>, heatmap_width: i32, heatmap_height: i32) -> Vec<BBox> {
-    // 过滤掉宽度 或 高度不合理的box
-    let mut new_boxes = Vec::new();
-    for bbox in boxes {
-        if bbox.x_max <= heatmap_width && bbox.y_max <= heatmap_height && bbox.x_min >= 0 && bbox.y_min >= 0 {
-            new_boxes.push(bbox);
-        }
-    }
-    new_boxes
-}
 
 
 // 执行检测
@@ -426,7 +416,7 @@ pub fn detect<F: FnMut(&usize, &usize)>(image_path: &str, config: DetectConfig, 
                     .unwrap();
                 let wh = wh.into_shape((config.heatmap_size.1, config.heatmap_size.0, 2 as usize))
                     .unwrap();
-                let tile_boxes = apply_metadata(filter(decode_heatmap(&hm, &wh, &config), config.heatmap_size.0 as i32, config.heatmap_size.1 as i32), &metadata);
+                let tile_boxes = apply_metadata(decode_heatmap(&hm, &wh, &config), &metadata);
 
                 all_boxes.extend(tile_boxes);
                 current += 1;
