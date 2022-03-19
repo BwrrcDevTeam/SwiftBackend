@@ -2,6 +2,7 @@ use wither::bson::{DateTime, doc};
 use wither::bson::oid::ObjectId;
 use wither::Model;
 use serde::{Serialize, Deserialize};
+use serde_json::json;
 use crate::models::SearchById;
 
 #[derive(Debug, Model, Serialize, Deserialize, Clone)]
@@ -18,3 +19,15 @@ pub struct Storage {
 }
 
 impl SearchById for Storage {}
+
+impl Storage {
+    pub fn to_response(self) -> serde_json::Value {
+        json!({
+            "id": self.id.unwrap().to_hex(),
+            "filename": self.filename,
+            "mime_type": self.mime_type,
+            "created_at": self.created_at.timestamp(),
+            "owner": self.owner,
+        })
+    }
+}

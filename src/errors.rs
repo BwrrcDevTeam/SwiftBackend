@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use log::error;
 use serde::de::StdError;
 use tide::{Response, StatusCode};
 use tide::prelude::*;
@@ -86,8 +87,9 @@ pub async fn handle(mut res: Response) -> tide::Result<Response> {
         }
     }
     // 数据库和事物错误
-    if let Some(_err) = res.downcast_error::<wither::WitherError>() {
+    if let Some(err) = res.downcast_error::<wither::WitherError>() {
         // let err = err.to_owned();
+        error!("Wither Error: {:?}", err);
         res.set_body(json!({
             "code": 500,
             "message": {

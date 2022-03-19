@@ -27,3 +27,25 @@ md5 = "0.7.0"
 futures = "0.3.21"
 multer = "2.0.2"
 bson = "2.1.0"
+urlencoding = "2.1.0"
+
+
+[profile.release]
+# 一些优化内容
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
+[profile.release.package]
+adler32.opt-level = 3
+crc32fast.opt-level = 3
+miniz_oxide.opt-level = 3
+png.opt-level = 3
+deflate.opt-level = 3
+
+[profile.dev.package]
+adler32.opt-level = 3
+crc32fast.opt-level = 3
+miniz_oxide.opt-level = 3
+png.opt-level = 3
+deflate.opt-level = 3

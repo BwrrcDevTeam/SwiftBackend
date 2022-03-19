@@ -4,12 +4,11 @@
 // By lihe07
 // =======================
 
-use image::{EncodableLayout};
 use log::{info, warn};
 use tide::{Request, Response, Server};
 use tide::prelude::*;
 use wither::bson::doc;
-use swift_det_lib::{BBox, detect, make_env};
+use swift_det_lib::{BBox, detect, DetectConfig, make_env};
 use crate::apis::{json_response, require_perm};
 use crate::AppState;
 use crate::models::detections::Detection;
@@ -17,6 +16,8 @@ use crate::models::Session;
 use wither::Model;
 use crate::models::SearchById;
 use futures::StreamExt;
+use wither::bson::oid::ObjectId;
+use wither::mongodb::Database;
 
 pub fn register(app: &mut Server<AppState>) {
     info!("注册检测器API");
@@ -39,8 +40,53 @@ struct CreateTaskForm {
     tile_max_num: u16,
 }
 
+async fn do_task(db: Database, task_id: ObjectId, task_config: DetectConfig) {
+    let env = make_env();
+    let env = env.unwrap();
+    info!("开始检测任务");
+    let mut task = Detection::by_id(&db, &task_id.to_hex()).await.unwrap();
+    let attachment = task.get_attachment(&db).await.unwrap();
+    let result = detect(attachment.local_path.as_str(), task_config, env, |current, total| {
+        let task = task.to_owned();
+        if let Ok(..) = async_std::task::block_on(
+            task.update(&db, None, doc! {
+                    "$set": {
+                        "status": "processing",
+                        "current": current.to_owned() as i32,
+                        "total": total.to_owned() as i32,
+                    }
+                }, None)
+        ) {
+            info!("任务 {} 更新成功 进度 {}/{}", &task_id, current, total);
+        } else {
+            warn!("任务 {} 更新失败 进度 {}/{}", &task_id, current, total);
+        }
+    }, false);
+    if result.is_err() {
+        if let Ok(..) = task.update(&db, None, doc! {
+                "$set": {
+                    "status": "failed",
+                },
+                "$unset": {
+                    "result": "",
+                    "current": "",
+                    "total": "",
+                }
+            }, None).await {
+            warn!("任务 {} 失败", &task_id);
+        } else {
+            warn!("任务 {} 失败 + 更新失败", &task_id);
+        }
+        return;
+    }
+    info!("任务 {} 执行完毕", &task_id);
+    task.status = "finished".to_owned();
+    task.result = Some(result.unwrap());
+    task.save(&db, None).await.unwrap();
+}
+
 async fn api_create_task(mut req: Request<AppState>) -> tide::Result<tide::Response> {
-    let form: CreateTaskForm = req.body_form().await?;
+    let form: CreateTaskForm = req.body_json().await?;
 
     let session: &Session = req.ext().unwrap();
     let state = req.state();
@@ -70,9 +116,9 @@ async fn api_create_task(mut req: Request<AppState>) -> tide::Result<tide::Respo
         created_at: chrono::Utc::now().into(),
         status: "pending".to_string(),
         attachment: form.attachment,
-        window_size: form.window_size,
-        overlap: form.overlap,
-        tile_max_num: form.tile_max_num,
+        window_size: form.window_size as isize,
+        overlap: form.overlap as i8,
+        tile_max_num: form.tile_max_num as i16,
         model_name: form.model_name,
         result: None,
         current: None,
@@ -100,66 +146,18 @@ async fn api_create_task(mut req: Request<AppState>) -> tide::Result<tide::Respo
             }));
         return Ok(resp);
     }
-    let attachment = attachment.unwrap();
-    let env = make_env();
-    if env.is_err() {
-        let mut resp = tide::Response::new(tide::StatusCode::InternalServerError);
-        resp.set_body(json!({
-                "code": 500,
-                "message": {
-                    "cn": "环境初始化失败",
-                    "en": "Environment initialization failed",
-                },
-                "description": {
-                    "task_id": task_id,
-                },
-            }));
-        return Ok(resp);
-    }
-    let env = env.unwrap();
 
     // 启动任务
     // 这两个数据是要送给closure的
     let db = state.db.clone();
-    let task = task.clone();
-    async_std::task::spawn(async move {
-        info!("开始检测任务");
-        let task_id = task.id.as_ref().unwrap().to_owned();
-        let result = detect(attachment.local_path.as_str(), task_config, env, |current, total| {
-            let task = task.clone();
-            if let Ok(..) = async_std::task::block_on(
-                task.update(&db, None, doc! {
-                    "$set": {
-                        "status": "processing",
-                        "current": current.to_owned() as i32,
-                        "total": total.to_owned() as i32,
-                    }
-                }, None)
-            ) {
-                info!("任务 {} 更新成功 进度 {}/{}", &task_id, current, total);
-            } else {
-                warn!("任务 {} 更新失败 进度 {}/{}", &task_id, current, total);
-            }
-        }, false);
-        if result.is_err() {
-            if let Ok(..) = task.update(&db, None, doc! {
-                "$set": {
-                    "status": "failed",
-                },
-                "$unset": {
-                    "result": "",
-                    "current": "",
-                    "total": "",
-                }
-            }, None).await {
-                warn!("任务 {} 失败", &task_id);
-            } else {
-                warn!("任务 {} 失败 + 更新失败", &task_id);
-            }
-        }
-    });
+    std::thread::Builder::new()
+        .stack_size(2 * 1024 * 1024 * 1024)
+        .spawn(move || {
+            async_std::task::block_on(do_task(db, task_id, task_config));
+        })
+        .unwrap();
     Ok(json!({
-        "task_id": task_id
+        "task_id": task.id.unwrap().to_hex()
     }).into())
 }
 
@@ -208,25 +206,37 @@ async fn api_get_task_info(req: Request<AppState>) -> tide::Result<tide::Respons
     }
 }
 
-fn draw_box(img: &mut image::RgbImage, bbox: &BBox, color: image::Rgb<u8>, thickness: u32) {
+fn draw_box(img: &mut image::RgbImage, bbox: &BBox, color: image::Rgb<u8>, thickness: i32) {
     for x in bbox.x_min..bbox.x_min + thickness {
         for y in bbox.y_min..bbox.y_max {
-            img.put_pixel(x, y, color);
+            if x >= img.width() as i32 || y >= img.height() as i32 {
+                continue;
+            }
+            img.put_pixel(x as u32, y as u32, color);
         }
     }
     for x in bbox.x_max..bbox.x_max + thickness {
         for y in bbox.y_min..bbox.y_max {
-            img.put_pixel(x, y, color);
+            if x >= img.width() as i32 || y >= img.height() as i32 {
+                continue;
+            }
+            img.put_pixel(x as u32, y as u32, color);
         }
     }
     for y in bbox.y_min..bbox.y_min + thickness {
         for x in bbox.x_min..bbox.x_max {
-            img.put_pixel(x, y, color);
+            if x >= img.width() as i32 || y >= img.height() as i32 {
+                continue;
+            }
+            img.put_pixel(x as u32, y as u32, color);
         }
     }
     for y in bbox.y_max..bbox.y_max + thickness {
         for x in bbox.x_min..bbox.x_max {
-            img.put_pixel(x, y, color);
+            if x >= img.width() as i32 || y >= img.height() as i32 {
+                continue;
+            }
+            img.put_pixel(x as u32, y as u32, color);
         }
     }
 }
@@ -245,17 +255,26 @@ fn draw_boxes(image_path: String, boxes: Vec<BBox>, threshold: f32) -> Option<im
     }
 }
 
+#[derive(Deserialize)]
+struct DrawQuery {
+    threshold: f32,
+}
+
 async fn api_draw(req: Request<AppState>) -> tide::Result<Response> {
     let task_id = req.param("task_id").unwrap();
     let state = req.state();
-    let threshold = req.param("threshold").unwrap_or("0.5").parse::<f32>().unwrap_or(0.5);
+    let query = req.query::<DrawQuery>().unwrap_or(DrawQuery { threshold: 0.5 });
+    let threshold = query.threshold;
     if let Some(task) = Detection::by_id(&state.db, &task_id.to_string()).await {
         if let Some(attachment) = task.get_attachment(&state.db).await {
             let mut resp = tide::Response::new(tide::StatusCode::Ok);
             let img = draw_boxes(attachment.local_path.clone(), task.result.unwrap(), threshold);
             if let Some(img) = img {
-                resp.set_body(img.as_bytes());
-                resp.set_content_type("image/jpeg");
+                let buffer = Vec::new();
+                let mut buffer = std::io::Cursor::new(buffer);
+                img.write_to(&mut buffer, image::ImageOutputFormat::Png).unwrap();
+                resp.set_body(buffer.into_inner());
+                resp.set_content_type("image/png");
             } else {
                 resp.set_status(tide::StatusCode::NotFound);
                 resp.set_body(json!({

@@ -3,10 +3,11 @@ use wither::bson::{doc};
 use wither::Model;
 use wither::mongodb::Database;
 use crate::errors::AppErrors;
-use crate::forms::try_into_object_id;
+
 use crate::models::SearchById;
 use serde::{Serialize, Deserialize};
 use futures::stream::StreamExt;
+use serde_json::json;
 
 #[derive(Debug, Model, Serialize, Deserialize, Clone)]
 #[model(collection_name = "positions")]
@@ -25,8 +26,7 @@ impl SearchById for Position {}
 
 impl Position {
     pub async fn by_group(db: &Database, group_id: &str) -> Result<Vec<Position>, AppErrors> {
-        let oid = try_into_object_id(group_id.to_string())?;
-        let filter = doc! {"belongs_to": oid};
+        let filter = doc! {"belongs_to": group_id};
 
         let positions_: Vec<_> = Position::find(db, Some(filter), None)
             .await
@@ -40,5 +40,14 @@ impl Position {
             }
         }
         Ok(positions)
+    }
+    pub fn to_response(self) -> serde_json::Value {
+        json!({
+            "id": self.id.unwrap().to_hex(),
+            "name": self.name,
+            "belongs_to": self.belongs_to,
+            "longitude": self.longitude,
+            "latitude": self.latitude,
+        })
     }
 }

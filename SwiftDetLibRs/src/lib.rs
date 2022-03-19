@@ -127,10 +127,10 @@ fn make_session<'a>(env: &'a Environment, config: &'a DetectConfig) -> Session<'
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct BBox {
-    pub x_min: u32,
-    pub y_min: u32,
-    pub x_max: u32,
-    pub y_max: u32,
+    pub x_min: i32,
+    pub y_min: i32,
+    pub x_max: i32,
+    pub y_max: i32,
     pub score: f32,
 }
 
@@ -314,10 +314,10 @@ fn decode_heatmap(hm: &ArrayView2<f32>, wh: &ArrayView3<f32>, config: &DetectCon
             eprintln!("警告: 不合理的高度: {}", height);
         }
         boxes.push(BBox {
-            x_min: ((peak.0 as f32 - width / 2.) * width_scale) as u32,
-            x_max: ((peak.0 as f32 + width / 2.) * width_scale) as u32,
-            y_min: ((peak.1 as f32 - height / 2.) * height_scale) as u32,
-            y_max: ((peak.1 as f32 + height / 2.) * height_scale) as u32,
+            x_min: ((peak.0 as f32 - width / 2.) * width_scale) as i32,
+            x_max: ((peak.0 as f32 + width / 2.) * width_scale) as i32,
+            y_min: ((peak.1 as f32 - height / 2.) * height_scale) as i32,
+            y_max: ((peak.1 as f32 + height / 2.) * height_scale) as i32,
             score: peak.2,
         })
     }
@@ -328,10 +328,10 @@ fn decode_heatmap(hm: &ArrayView2<f32>, wh: &ArrayView3<f32>, config: &DetectCon
 fn apply_metadata(mut boxes: Vec<BBox>, metadata: &Metadata) -> Vec<BBox> {
     // 根据tile的元数据对检测框进行缩放
     for box_ in boxes.iter_mut() {
-        box_.x_min = (box_.x_min as f32 * metadata.width_scale) as u32 + metadata.start_x as u32;
-        box_.x_max = (box_.x_max as f32 * metadata.width_scale) as u32 + metadata.start_x as u32;
-        box_.y_min = (box_.y_min as f32 * metadata.height_scale) as u32 + metadata.start_y as u32;
-        box_.y_max = (box_.y_max as f32 * metadata.height_scale) as u32 + metadata.start_y as u32;
+        box_.x_min = (box_.x_min as f32 * metadata.width_scale) as i32 + metadata.start_x as i32;
+        box_.x_max = (box_.x_max as f32 * metadata.width_scale) as i32 + metadata.start_x as i32;
+        box_.y_min = (box_.y_min as f32 * metadata.height_scale) as i32 + metadata.start_y as i32;
+        box_.y_max = (box_.y_max as f32 * metadata.height_scale) as i32 + metadata.start_y as i32;
     }
     boxes
 }

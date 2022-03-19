@@ -2,7 +2,7 @@ use serde_json::json;
 use wither::bson::{doc, Document};
 use wither::mongodb::Database;
 use crate::errors::AppErrors;
-use crate::models::groups::Group;
+
 use crate::models::positions::Position;
 use crate::models::SearchById;
 use crate::models::storage::Storage;
@@ -19,7 +19,9 @@ pub struct RecordsQuery {
     // 分组id
     from: Option<i64>,
     // 开始时间
-    to: Option<i64>, // 结束时间
+    to: Option<i64>,
+    // 结束时间
+    engaged: Option<String>, // 参与者
 }
 
 impl RecordsQuery {
@@ -61,6 +63,13 @@ impl RecordsQuery {
                 filter.insert("time", doc! { "$lte": to });
             }
         }
+        if let Some(engaged) = self.engaged {
+            filter.insert("collaborators", doc! {
+                "$elemMatch": {
+                    "$eq": engaged,
+                }
+            });
+        }
 
         filter
     }
@@ -68,7 +77,7 @@ impl RecordsQuery {
 
 #[derive(Deserialize)]
 pub struct NewRecordForm {
-    pub group: String,
+    // pub group: String,
     pub time: i64,
     pub num: i64,
     pub position: String,
@@ -79,15 +88,6 @@ pub struct NewRecordForm {
 
 impl NewRecordForm {
     pub async fn validate(&self, db: &Database) -> Result<(), AppErrors> {
-        if let None = Group::by_id(&db, &self.group).await {
-            return Err(AppErrors::ValidationError(json!({
-                "code": 4,
-                "message": {
-                    "cn": "调查小组不存在",
-                    "en": "Group does not exist"
-                }
-            })));
-        }
         if let Some(collaborators) = &self.collaborators {
             for collaborator in collaborators {
                 if let None = User::by_id(&db, &collaborator).await {
@@ -120,17 +120,7 @@ impl NewRecordForm {
                 }
             }
         }
-        if let Some(position) = Position::by_id(&db, &self.position).await {
-            if position.belongs_to != self.group {
-                return Err(AppErrors::ValidationError(json!({
-                    "code": 4,
-                    "message": {
-                        "cn": "调查小组与调查位置不匹配",
-                        "en": "Group does not match position"
-                    }
-                })));
-            }
-        } else {
+        if let None = Position::by_id(&db, &self.position).await {
             return Err(AppErrors::ValidationError(json!({
                 "code": 4,
                 "message": {
@@ -151,7 +141,6 @@ pub struct UpdateRecordForm {
     pub attachments: Option<Vec<String>>,
     pub description: Option<String>,
     pub position: Option<String>,
-    pub group: Option<String>,
 }
 
 impl UpdateRecordForm {
@@ -198,18 +187,6 @@ impl UpdateRecordForm {
                     "message": {
                         "cn": "调查位置不存在",
                         "en": "Position does not exist"
-                    }
-                })));
-            }
-        }
-        // 检查调查小组
-        if let Some(group) = &self.group {
-            if let None = Group::by_id(&db, &group).await {
-                return Err(AppErrors::ValidationError(json!({
-                    "code": 4,
-                    "message": {
-                        "cn": "调查小组不存在",
-                        "en": "Group does not exist"
                     }
                 })));
             }

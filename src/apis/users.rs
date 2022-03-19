@@ -369,7 +369,7 @@ async fn api_create_inactive_user(mut req: Request<AppState>) -> tide::Result<Re
 }
 
 async fn api_get_users(req: Request<AppState>) -> tide::Result {
-    require_perm(&req, vec![3]).await?;
+    require_perm(&req, vec![1, 2, 3]).await?;
     let state = req.state().to_owned();
     let db = state.db.clone();
     let users: Vec<_> = User::find(&db, None, None)

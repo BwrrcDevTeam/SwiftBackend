@@ -42,7 +42,7 @@ async fn main() {
         config,
         db,
     });
-    app.with(tide::log::LogMiddleware::new());
+    // app.with(tide::log::LogMiddleware::new());
 
     app.with(session::SessionMiddleware {});
     app.with(tide::security::CorsMiddleware::new()

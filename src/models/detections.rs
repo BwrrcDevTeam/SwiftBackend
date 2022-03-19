@@ -16,16 +16,16 @@ pub struct Detection {
     pub created_at: DateTime,
     pub status: String,
     pub attachment: String,
-    pub window_size: usize,
-    pub overlap: u8,
-    pub tile_max_num: u16,
+    pub window_size: isize,
+    pub overlap: i8,
+    pub tile_max_num: i16,
     pub model_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub result: Option<Vec<BBox>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub current: Option<usize>,
+    pub current: Option<isize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub total: Option<usize>,
+    pub total: Option<isize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub threshold: Option<f64>,
 }
@@ -39,9 +39,9 @@ const HEATMAP_SIZE: (usize, usize) = (200, 200);
 impl Detection {
     pub fn get_config(&self, model_path: String) -> DetectConfig {
         DetectConfig {
-            window_size: (self.window_size, self.window_size),
-            overlap: self.overlap,
-            tile_max_num: self.tile_max_num,
+            window_size: (self.window_size as usize, self.window_size as usize),
+            overlap: self.overlap as u8,
+            tile_max_num: self.tile_max_num as u16,
             input_size: INPUT_SIZE,
             batch_size: 1,
             heatmap_size: HEATMAP_SIZE,
@@ -83,9 +83,9 @@ impl Detection {
 pub struct DetectionStatusResponse {
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub current: Option<usize>,
+    pub current: Option<isize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub total: Option<usize>,
+    pub total: Option<isize>,
 }
 
 // 包含除了Result之外的信息
@@ -96,14 +96,14 @@ pub struct DetectionInfoResponse {
     pub created_at: DateTime,
     pub attachment: String,
     pub status: String,
-    pub window_size: usize,
-    pub overlap: u8,
-    pub tile_max_num: u16,
+    pub window_size: isize,
+    pub overlap: i8,
+    pub tile_max_num: i16,
     pub model_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub current: Option<usize>,
+    pub current: Option<isize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub total: Option<usize>,
+    pub total: Option<isize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub threshold: Option<f64>,
 }

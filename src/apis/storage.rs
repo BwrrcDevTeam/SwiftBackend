@@ -46,7 +46,6 @@ impl<T: Read + Unpin> Stream for BufferedBytesStream<T> {
             Err(ref e) if e.kind() == io::ErrorKind::Interrupted => Poll::Pending,
             Err(e) => Poll::Ready(Some(Err(e))),
         }
-
     }
 }
 
@@ -99,7 +98,7 @@ pub async fn api_upload(mut req: Request<AppState>) -> tide::Result {
         }
         if let Some(mut storage) = storage {
             storage.save(&state.db, None).await?;
-            Ok(json!(storage).into())
+            Ok(storage.to_response().into())
         } else {
             Ok(json_response(400, json!({ "code": 400, "message": {
                 "cn": "请指定文件",
@@ -129,8 +128,8 @@ async fn api_download_inline(req: Request<AppState>) -> tide::Result {
     if let Some(storage) = Storage::by_id(&db, &id).await {
         if let Ok(body) = Body::from_file(storage.local_path).await {
             let mut resp = Response::new(200);
-            resp.set_content_type(Mime::from_str(&*storage.mime_type.to_owned()).unwrap());
-            resp.insert_header("Content-Disposition", format!("inline; filename={}", storage.filename));
+            // resp.set_content_type(Mime::from_str(&*storage.mime_type.to_owned()).unwrap());
+            resp.insert_header("Content-Disposition", "inline");
             resp.insert_header("Cache-Control", "max-age=86400");
             resp.set_body(body);
             Ok(resp)
@@ -161,8 +160,8 @@ async fn api_download_attachment(req: Request<AppState>) -> tide::Result {
     if let Some(storage) = Storage::by_id(&db, &id).await {
         if let Ok(body) = Body::from_file(storage.local_path).await {
             let mut resp = Response::new(200);
-            resp.set_content_type(Mime::from_str(&*storage.mime_type.to_owned()).unwrap());
-            resp.insert_header("Content-Disposition", format!("attachment; filename={}", storage.filename));
+            // resp.set_content_type(Mime::from_str(&*storage.mime_type.to_owned()).unwrap());
+            resp.insert_header("Content-Disposition", "attachment; filename=\"".to_string() + &*urlencoding::encode(&*storage.filename).to_string() + "\"");
             resp.insert_header("Cache-Control", "max-age=86400");
             resp.set_body(body);
             Ok(resp)
@@ -247,10 +246,13 @@ async fn api_download_inline_resized(req: Request<AppState>) -> tide::Result {
     if let Some(storage) = Storage::by_id(&db, &id).await {
         if let Ok(image) = image::open(storage.local_path) {
             let image = image.resize_to_fill(width, height, image::imageops::FilterType::Triangle);
-            let body = Body::from_bytes(image.into_bytes());
+            let buffer = Vec::new();
+            let mut buffer = std::io::Cursor::new(buffer);
+            image.write_to(&mut buffer, image::ImageOutputFormat::Png).unwrap();
+            let body = Body::from_bytes(buffer.into_inner());
             let mut resp = Response::new(200);
             resp.set_content_type(Mime::from_str(&*storage.mime_type.to_owned()).unwrap());
-            resp.insert_header("Content-Disposition", format!("inline; filename={}", storage.filename));
+            resp.insert_header("Content-Disposition", "inline");
             resp.insert_header("Cache-Control", "max-age=86400");
             resp.set_body(body);
             Ok(resp)
@@ -258,8 +260,8 @@ async fn api_download_inline_resized(req: Request<AppState>) -> tide::Result {
             Ok(json_response(500, json!({
                 "code": 500,
                 "message": {
-                    "cn": "服务器无法读取文件",
-                    "en": "Server can't read file"
+                    "cn": "无法读取图片文件",
+                    "en": "Can't read image file"
                 }
             })))
         }

@@ -12,6 +12,7 @@ use crate::models::groups::Group;
 use crate::models::projects::Project;
 use wither::Model;
 use futures::StreamExt;
+use crate::models::positions::Position;
 
 pub fn register(app: &mut Server<AppState>) {
     info!("注册API records");
@@ -101,8 +102,9 @@ async fn api_create_record(mut req: Request<AppState>) -> tide::Result {
             }
         })));
     }
+    let position = Position::by_id(&db, &form.position).await.unwrap();
     let project = project.unwrap();
-    let record = Record {
+    let mut record = Record {
         id: None,
         num: form.num as i16,
         position: form.position,
@@ -112,11 +114,12 @@ async fn api_create_record(mut req: Request<AppState>) -> tide::Result {
         ).into(),
         collaborators: form.collaborators.unwrap_or(vec![]),
         description: form.description.unwrap_or("".to_string()),
-        group: form.group,
+        group: position.belongs_to,
         user: session.user.to_owned().unwrap(),
         project: project.id.unwrap().to_hex(),
         attachments: form.attachments.unwrap_or(vec![]),
     };
+    record.save(&db, None).await?;
     Ok(record.to_response().into())
 }
 
@@ -169,7 +172,10 @@ async fn api_update_record_by_id(mut req: Request<AppState>) -> tide::Result {
     }
 
     if let Some(position) = form.position {
+        let position_ = Position::by_id(&db, &position).await.unwrap();
         record.position = position;
+        // 这俩要改一起改
+        record.group = position_.belongs_to;
     }
     if let Some(time) = form.time {
         record.time = chrono::DateTime::from_utc(
@@ -182,9 +188,6 @@ async fn api_update_record_by_id(mut req: Request<AppState>) -> tide::Result {
     }
     if let Some(description) = form.description {
         record.description = description;
-    }
-    if let Some(group) = form.group {
-        record.group = group;
     }
     if let Some(attachments) = form.attachments {
         record.attachments = attachments;

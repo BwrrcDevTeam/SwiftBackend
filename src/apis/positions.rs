@@ -38,7 +38,11 @@ async fn api_get_available_positions(mut req: Request<AppState>) -> tide::Result
         let group_positions = Position::by_group(&db, &group).await.unwrap();
         positions.extend(group_positions);
     }
-    Ok(json!(positions).into())
+    let mut result = Vec::new();
+    for position in positions {
+        result.push(position.to_response())
+    }
+    Ok(json!(result).into())
 }
 
 async fn api_get_position(mut req: Request<AppState>) -> tide::Result {
@@ -47,7 +51,7 @@ async fn api_get_position(mut req: Request<AppState>) -> tide::Result {
     let state = req.state();
     let db = state.db.to_owned();
     if let Some(position) = Position::by_id(&db, &id.to_string()).await {
-        Ok(json!(position).into())
+        Ok(position.to_response().into())
     } else {
         Ok(json_response(404, json!({
             "code": 4,
@@ -74,7 +78,7 @@ async fn api_new_position(mut req: Request<AppState>) -> tide::Result {
         latitude: form.latitude,
     };
     position.save(&db, None).await?;
-    Ok(json!(position).into())
+    Ok(position.to_response().into())
 }
 
 async fn api_replace_by_group(mut req: Request<AppState>) -> tide::Result {
@@ -108,7 +112,7 @@ async fn api_replace_by_group(mut req: Request<AppState>) -> tide::Result {
             latitude: position.latitude,
         };
         position.save(&db, None).await?;
-        positions.push(position);
+        positions.push(position.to_response());
     }
     Ok(json!(positions).into())
 }
@@ -129,5 +133,9 @@ async fn api_get_by_group(mut req: Request<AppState>) -> tide::Result {
         })));
     }
     let positions = Position::by_group(&db, &group_id).await.unwrap();
-    Ok(json!(positions).into())
+    let mut result = Vec::new();
+    for position in positions {
+        result.push(position.to_response());
+    }
+    Ok(json!(result).into())
 }
