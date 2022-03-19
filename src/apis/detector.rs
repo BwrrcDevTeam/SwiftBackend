@@ -366,17 +366,13 @@ async fn api_compute_number(req: Request<AppState>) -> tide::Result {
     let state = req.state();
     let db = &state.db.to_owned();
     let task_id = req.param("task_id").unwrap().to_owned();
+    let query = req.query::<DrawQuery>().unwrap_or(DrawQuery { threshold: 0.5 });
 
     if let Some(task) = Detection::by_id(db, &task_id).await {
         if let Some(boxes) = task.result {
-            let threshold = if let Some(threshold) = task.threshold {
-                threshold
-            } else {
-                0.5
-            } as f32;
             let mut num = 0;
             for box_ in boxes {
-                if box_.score >= threshold {
+                if box_.score >= query.threshold {
                     num += 1;
                 }
             }
