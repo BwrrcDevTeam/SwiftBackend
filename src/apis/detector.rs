@@ -205,7 +205,21 @@ async fn api_get_task_info(req: Request<AppState>) -> tide::Result<tide::Respons
     }
 }
 
-fn draw_box(img: &mut image::RgbImage, bbox: &BBox, color: image::Rgb<u8>, thickness: i32) {
+fn draw_box(img: &mut image::RgbImage, bbox: &mut BBox, color: image::Rgb<u8>, thickness: i32) {
+    let img_width = img.width() as i32;
+    let img_height = img.height() as i32;
+    if bbox.y_min < 0 {
+        bbox.y_min = 0;
+    }
+    if bbox.y_max > img_height {
+        bbox.y_max = img_height;
+    }
+    if bbox.x_min < 0 {
+        bbox.x_min = 0;
+    }
+    if bbox.x_max > img_width {
+        bbox.x_max = img_width;
+    }
     for x in bbox.x_min..bbox.x_min + thickness {
         for y in bbox.y_min..bbox.y_max {
             if x >= img.width() as i32 || y >= img.height() as i32 {
@@ -243,9 +257,9 @@ fn draw_box(img: &mut image::RgbImage, bbox: &BBox, color: image::Rgb<u8>, thick
 fn draw_boxes(image_path: String, boxes: Vec<BBox>, threshold: f32) -> Option<image::RgbImage> {
     if let Ok(img) = image::open(image_path) {
         let mut img = img.to_rgb8();
-        for bbox in boxes {
+        for mut bbox in boxes {
             if bbox.score > threshold {
-                draw_box(&mut img, &bbox, image::Rgb([0, 255, 0]), 1);
+                draw_box(&mut img, &mut bbox, image::Rgb([0, 255, 0]), 1);
             }
         }
         Some(img)
