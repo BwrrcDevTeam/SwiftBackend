@@ -205,51 +205,34 @@ async fn api_get_task_info(req: Request<AppState>) -> tide::Result<tide::Respons
     }
 }
 
+
 fn draw_box(img: &mut image::RgbImage, bbox: &mut BBox, color: image::Rgb<u8>, thickness: i32) {
-    let img_width = img.width() as i32;
-    let img_height = img.height() as i32;
-    if bbox.y_min < 0 {
-        bbox.y_min = 0;
-    }
-    if bbox.y_max > img_height {
-        bbox.y_max = img_height;
-    }
-    if bbox.x_min < 0 {
-        bbox.x_min = 0;
-    }
-    if bbox.x_max > img_width {
-        bbox.x_max = img_width;
-    }
     for x in bbox.x_min..bbox.x_min + thickness {
         for y in bbox.y_min..bbox.y_max {
-            if x >= img.width() as i32 || y >= img.height() as i32 {
-                continue;
+            if let Some(pixel) = img.get_pixel_mut_checked(x as u32, y as u32) {
+                *pixel = color;
             }
-            img.put_pixel(x as u32, y as u32, color);
         }
     }
     for x in bbox.x_max..bbox.x_max + thickness {
         for y in bbox.y_min..bbox.y_max {
-            if x >= img.width() as i32 || y >= img.height() as i32 {
-                continue;
+            if let Some(pixel) = img.get_pixel_mut_checked(x as u32, y as u32) {
+                *pixel = color;
             }
-            img.put_pixel(x as u32, y as u32, color);
         }
     }
     for y in bbox.y_min..bbox.y_min + thickness {
         for x in bbox.x_min..bbox.x_max {
-            if x >= img.width() as i32 || y >= img.height() as i32 {
-                continue;
+            if let Some(pixel) = img.get_pixel_mut_checked(x as u32, y as u32) {
+                *pixel = color;
             }
-            img.put_pixel(x as u32, y as u32, color);
         }
     }
     for y in bbox.y_max..bbox.y_max + thickness {
         for x in bbox.x_min..bbox.x_max {
-            if x >= img.width() as i32 || y >= img.height() as i32 {
-                continue;
+            if let Some(pixel) = img.get_pixel_mut_checked(x as u32, y as u32) {
+                *pixel = color;
             }
-            img.put_pixel(x as u32, y as u32, color);
         }
     }
 }
@@ -288,6 +271,7 @@ async fn api_draw(req: Request<AppState>) -> tide::Result<Response> {
                 img.write_to(&mut buffer, image::ImageOutputFormat::Png).unwrap();
                 resp.set_body(buffer.into_inner());
                 resp.set_content_type("image/png");
+                resp.insert_header("Cache-Control", "max-age=114514");
             } else {
                 resp.set_status(tide::StatusCode::NotFound);
                 resp.set_body(json!({
