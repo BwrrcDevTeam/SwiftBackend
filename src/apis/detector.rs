@@ -185,7 +185,6 @@ async fn api_get_task_status(req: Request<AppState>) -> tide::Result<tide::Respo
 async fn api_get_task_info(req: Request<AppState>) -> tide::Result<tide::Response> {
     let task_id = req.param("task_id").unwrap();
     let state = req.state();
-    dbg!(task_id);
     if let Some(task) = Detection::by_id(&state.db, &task_id.to_string()).await {
         let mut resp = tide::Response::new(tide::StatusCode::Ok);
         resp.set_body(json!(task.to_info().await));
