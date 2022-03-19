@@ -12,7 +12,7 @@ pub struct Invitation {
     pub id: Option<ObjectId>,
     pub code: String,
     pub expire_at: DateTime,
-    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub groups: Option<Vec<String>>,
     pub permission: i8,
 }

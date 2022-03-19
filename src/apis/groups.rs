@@ -88,7 +88,7 @@ async fn api_create_group(mut req: Request<AppState>) -> tide::Result {
 
 async fn api_get_group(req: Request<AppState>) -> tide::Result {
     // 获取群组信息
-    require_perm(&req, vec![1, 2, 3]).await?;
+    // 允许所有人访问
     let state = req.state();
     let db = state.db.to_owned();
     let group_id = req.param("group_id").unwrap().to_owned();

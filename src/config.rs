@@ -3,14 +3,14 @@ use std::fs::File;
 use std::io::Read;
 use std::process::exit;
 use lettre::smtp::authentication::Credentials;
-use lettre::{ClientSecurity, Transport};
+use lettre::Transport;
 use lettre_email::{Email, EmailBuilder};
-use log::error;
+use log::{error, info};
 use serde::Deserialize;
 use tide::security::Origin;
 
 const NAME_CN: &str = "遇见雨燕";
-const NAME_EN: &str = "Swift's Moment";
+const NAME_EN: &str = "Moment of Swift";
 
 const EMAIL_CN: &str = r#"<meta charset="utf8">
 <div class="container">
@@ -163,16 +163,16 @@ pub struct EmailConfig {
 impl EmailConfig {
     pub fn send(&self, mail: Email) -> Result<(), ()> {
         let cred = Credentials::new(self.username.clone(), self.password.clone());
-        let mailer = lettre::SmtpClient::new(format!("{}:{}", self.host, self.port), ClientSecurity::None);
-        if mailer.is_err() {
-            return Err(());
-        }
-        let mut mailer = mailer.unwrap()
+        let mailer = lettre::SmtpClient::new_simple(&*self.host).unwrap();
+        let mut mailer = mailer
             .credentials(cred)
             .transport();
-        if let Ok(..) = mailer.send(mail.into()) {
+        let result = mailer.send(mail.into());
+        if result.is_ok() {
+            info!("邮件发送成功 {:?}", result);
             Ok(())
         } else {
+            error!("邮件发送失败: {:?}", result);
             Err(())
         }
     }

@@ -4,8 +4,9 @@ use wither::bson::doc;
 use wither::mongodb::Database;
 use serde::Deserialize;
 use crate::errors::AppErrors;
-use crate::forms::try_into_object_id;
+use crate::models::SearchById;
 use crate::models::users::User;
+use crate::models::groups::Group;
 
 // 管理员直接创建新用户时的Form
 #[derive(Deserialize)]
@@ -22,8 +23,6 @@ fn check_email(email: String) -> bool {
     let re = regex::Regex::new(r"^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$").unwrap();
     re.is_match(&email)
 }
-
-
 
 
 async fn register_check_name(name: String, db: &Database) -> Result<(), AppErrors> {
@@ -119,14 +118,9 @@ async fn register_check_email(email: String, db: &Database) -> Result<(), AppErr
 }
 
 async fn check_groups(group_ids: &Vec<String>, db: &Database) -> Result<(), AppErrors> {
-    let groups = db.collection("groups");
     for group_id in group_ids.iter() {
         // 尝试将其转换为ObjectId
-        let oid = try_into_object_id(group_id.to_owned())?;
-        let group = groups.find_one(Some(doc! {
-                "_id": oid
-            }), None).await.unwrap_or(None);
-        if group.is_none() {
+        if Group::by_id(&db, group_id).await.is_none() {
             return Err(AppErrors::ValidationError(json!({
                     "code": 4,
                     "message": {

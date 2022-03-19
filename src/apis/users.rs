@@ -313,7 +313,6 @@ fn random_code(length: usize) -> String {
 }
 
 async fn api_create_inactive_user(mut req: Request<AppState>) -> tide::Result<Response> {
-    require_perm(&req, vec![1, 2, 3]).await?;
     let state = req.state().to_owned();
     let db = state.db.clone();
     // let session: &Session = req.ext().unwrap();
