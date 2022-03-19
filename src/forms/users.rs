@@ -124,7 +124,7 @@ async fn check_groups(group_ids: &Vec<String>, db: &Database) -> Result<(), AppE
         // 尝试将其转换为ObjectId
         let oid = try_into_object_id(group_id.to_owned())?;
         let group = groups.find_one(Some(doc! {
-                "id": oid
+                "_id": oid
             }), None).await.unwrap_or(None);
         if group.is_none() {
             return Err(AppErrors::ValidationError(json!({
