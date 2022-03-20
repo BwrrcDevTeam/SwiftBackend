@@ -53,7 +53,7 @@ async fn api_create_user(mut req: Request<AppState>) -> tide::Result<Response> {
     let session: &Session = req.ext().unwrap();
     if session.permission == 0 {
         // 普通用户
-        let form: NewUserFromInactive = req.body_form().await?;
+        let form: NewUserFromInactive = req.body_json().await?;
         form.validate(&db).await?;
 
         if let Some(inactive_user) = InactiveUser::by_code(&db, form.code).await {
