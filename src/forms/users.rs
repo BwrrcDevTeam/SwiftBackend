@@ -199,16 +199,16 @@ impl NewUserForm {
 // 激活一个InactiveUser
 #[derive(Debug, Deserialize)]
 pub struct NewUserFromInactive {
-    pub name: String,
-    pub password: String,
+    // pub name: String,
+    // pub password: String,
     pub code: String, // 验证码
 }
 
 impl NewUserFromInactive {
     pub async fn validate(&self, db: &Database) -> Result<(), AppErrors> {
-        // 首先执行非联网验证
-        register_check_name(self.name.clone(), db).await?;
-        check_password(self.password.clone())?;
+        // // 首先执行非联网验证
+        // register_check_name(self.name.clone(), db).await?;
+        // check_password(self.password.clone())?;
 
         // 检查InactiveUser是否存在
         let codes = db.collection("inactive_users");
