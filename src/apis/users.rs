@@ -21,6 +21,7 @@ use wither::Model;
 use crate::models::invitations::Invitation;
 use crate::models::users::User;
 use futures::StreamExt;
+use crate::models::groups::Group;
 
 pub fn register(app: &mut Server<AppState>) {
     info!("注册用户API");
@@ -59,8 +60,16 @@ async fn api_create_user(mut req: Request<AppState>) -> tide::Result<Response> {
         if let Some(inactive_user) = InactiveUser::by_code(&db, form.code.clone()).await {
             let mut user = inactive_user.to_user();
             // 将其保存到数据库
+
             info!("新注册用户: {}", user.name);
             user.save(&db, None).await?;
+            for group_id in user.groups.as_ref().unwrap_or(&vec![]) {
+                // 如果是管理员 则将其加入管理员组
+                if user.permission == 2.0 || user.permission == 3.0 {
+                    let mut group = Group::by_id(&db, &group_id).await.unwrap();
+                    group.managers.push(user.id.as_ref().unwrap().to_hex());
+                }
+            }
             InactiveUser::by_code(&db, form.code).await.unwrap().delete(&db).await?;
             Ok(user.to_response().into())
         } else {
@@ -156,6 +165,7 @@ async fn api_logout(req: Request<AppState>) -> tide::Result<Response> {
     let session: &Session = req.ext().unwrap();
     let mut session = session.to_owned();
     session.login = false;
+    session.permission = 0;
     session.user = None;
     session.save(&db, None).await?;
     let mut resp = Response::new(200);
