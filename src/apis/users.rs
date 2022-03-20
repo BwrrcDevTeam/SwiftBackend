@@ -68,6 +68,7 @@ async fn api_create_user(mut req: Request<AppState>) -> tide::Result<Response> {
                 if user.permission == 2.0 || user.permission == 3.0 {
                     let mut group = Group::by_id(&db, &group_id).await.unwrap();
                     group.managers.push(user.id.as_ref().unwrap().to_hex());
+                    group.save(&db, None).await?;
                 }
             }
             InactiveUser::by_code(&db, form.code).await.unwrap().delete(&db).await?;
