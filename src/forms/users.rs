@@ -234,45 +234,27 @@ impl NewUserFromInactive {
 
 #[derive(Debug, Deserialize)]
 pub struct LoginForm {
-    pub email: String,
+    pub id: String,
     pub password: String,
 }
 
 impl LoginForm {
     pub async fn validate(&self, db: &Database) -> Result<(), AppErrors> {
         // 首先执行非联网验证
-        if !check_email(self.email.clone()) {
+        if User::by_id(&db, &self.id).await.is_none() {
+            // 登录逻辑改为了用uid登录
             return Err(AppErrors::ValidationError(json!({
                 "code": 4,
                 "message": {
-                    "cn": "邮箱格式不正确",
-                    "en": "Email format is not correct"
+                    "cn": "用户不存在",
+                    "en": "User does not exist"
                 },
                 "description": {
-                    "got": self.email.clone()
+                    "id": self.id
                 }
             })));
         }
         check_password(self.password.clone())?;
-
-        // 检查用户是否存在
-        let users = db.collection("users");
-        let user = users.find_one(Some(doc! {
-            "email": self.email.clone()
-        }), None).await.unwrap_or(None);
-        if user.is_none() {
-            return Err(AppErrors::ValidationError(json!({
-                "code": 4,
-                "message": {
-                    "cn": "这个用户不存在",
-                    "en": "User does not exist"
-                },
-                "description": {
-                    "email": self.email.clone()
-                }
-            })));
-        }
-
         Ok(())
     }
 }
@@ -341,24 +323,25 @@ impl CreateInactiveUserForm {
     pub async fn validate(&self, db: &Database) -> Result<(), AppErrors> {
         // 这里不用检查邀请码是否存在，可以节省逻辑
         // 离线验证
-        register_check_email(self.email.clone(), db).await?;
-        // 检查邮箱是否存在
-        let users = db.collection("users");
-        let user = users.find_one(Some(doc! {
-            "email": self.email.clone()
-        }), None).await.unwrap_or(None);
-        if user.is_some() {
-            return Err(AppErrors::ValidationError(json!({
-                "code": 4,
-                "message": {
-                    "cn": "这个邮箱已经被注册",
-                    "en": "This email has been registered"
-                },
-                "description": {
-                    "email": self.email.clone()
-                }
-            })));
-        }
+        // 决定允许重复邮箱 但不允许重复用户名
+        // register_check_email(self.email.clone(), db).await?;
+        // // 检查邮箱是否存在
+        // let users = db.collection("users");
+        // let user = users.find_one(Some(doc! {
+        //     "email": self.email.clone()
+        // }), None).await.unwrap_or(None);
+        // if user.is_some() {
+        //     return Err(AppErrors::ValidationError(json!({
+        //         "code": 4,
+        //         "message": {
+        //             "cn": "这个邮箱已经被注册",
+        //             "en": "This email has been registered"
+        //         },
+        //         "description": {
+        //             "email": self.email.clone()
+        //         }
+        //     })));
+        // }
 
         // 检查用户名是否存在
         let users = db.collection("users");

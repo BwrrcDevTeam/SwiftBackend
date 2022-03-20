@@ -23,13 +23,28 @@ pub struct User {
 }
 
 impl User {
-    pub async fn by_email(db: &Database, email: &String) -> Option<Self> {
+    pub async fn by_email(db: &Database, email: &String) -> Vec<Self> {
         let filter = doc! {"email": email};
-        let user = User::find_one(db, Some(filter), None).await;
-        if user.is_err() {
-            return None;
+        let users_: Vec<_> = User::find(db, Some(filter), None)
+            .await
+            .expect("Failed to find users")
+            .collect()
+            .await;
+        let mut users = Vec::new();
+        for user in users_ {
+            if let Ok(user) = user {
+                users.push(user);
+            }
         }
-        user.unwrap()
+        users
+    }
+    pub async fn by_name(db: &Database, name: &String) -> Option<Self> {
+        let filter = doc! {"name": name};
+        if let Ok(user) = User::find_one(db, Some(filter), None).await {
+            user
+        } else {
+            None
+        }
     }
     pub fn to_response(&self) -> serde_json::Value {
         json!(UserResponse {

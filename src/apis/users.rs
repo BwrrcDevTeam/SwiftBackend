@@ -31,6 +31,8 @@ pub fn register(app: &mut Server<AppState>) {
     // .get(app_get_users);
     app.at("/users/check_email")
         .post(api_check_email);
+    app.at("/users/check_name")
+        .post(api_check_name);
     app.at("/users/login")
         .post(api_login);
     app.at("/users/logout")
@@ -95,7 +97,7 @@ async fn api_create_user(mut req: Request<AppState>) -> tide::Result<Response> {
     }
 }
 
-// 检查邮箱是否已经被注册
+// 获取相同email的用户列表
 async fn api_check_email(mut req: Request<AppState>) -> tide::Result<Response> {
     let state = req.state();
     let db = state.db.clone();
@@ -113,19 +115,41 @@ async fn api_check_email(mut req: Request<AppState>) -> tide::Result<Response> {
             "en": "Email format is incorrect"
         }
     })))?;
-    if let Some(user) = User::by_email(&db, &email.to_string()).await {
-        Ok(user.to_response().into())
+    let users = User::by_email(&db, &email.to_string()).await;
+    let mut resp = Vec::new();
+    for user in users {
+        resp.push(user.to_response());
+    }
+    Ok(json!(resp).into())
+}
+
+async fn api_check_name(mut req: Request<AppState>) -> tide::Result<Response> {
+    let state = req.state();
+    let db = state.db.clone();
+    let name: Value = req.body_json().await?;
+    let name = name.get("name").ok_or(AppErrors::ValidationError(json!({
+        "code": 4,
+        "message": {
+            "cn": "用户名不能为空",
+            "en": "User name cannot be empty"
+        }
+    })))?.as_str().ok_or(AppErrors::ValidationError(json!({
+        "code": 4,
+        "message": {
+            "cn": "用户名格式不正确",
+            "en": "User name format is incorrect"
+        }
+    })))?;
+    if let Some(user) = User::by_name(&db, &name.to_string()).await {
+        Ok(json!(user.to_response()).into())
     } else {
-        let mut resp = Response::new(404);
-        resp.set_content_type("application/json");
-        resp.set_body(json!({
+        Ok(json_response(404, json!({
             "code": 1001,
             "message": {
-                "cn": "邮箱未注册",
-                "en": "Email has not been registered"
+                "cn": "用户不存在",
+                "en": "User does not exist"
             }
-        }));
-        Ok(resp)
+        })))
     }
 }
 
@@ -138,7 +162,7 @@ async fn api_login(mut req: Request<AppState>) -> tide::Result<Response> {
     let form: LoginForm = req.body_json().await?;
     form.validate(&db).await?;
     // 已经验证过了，用户一定存在
-    let user = User::by_email(&db, &form.email).await.unwrap();
+    let user = User::by_id(&db, &form.id).await.unwrap();
     if user.password == form.password {
         // 修改Session
         session.login = true;
@@ -160,7 +184,7 @@ async fn api_login(mut req: Request<AppState>) -> tide::Result<Response> {
 }
 
 async fn api_logout(req: Request<AppState>) -> tide::Result<Response> {
-    require_perm(&req, vec![0, 3]).await?;
+    require_perm(&req, vec![1, 2, 3]).await?;
     let state = req.state();
     let db = state.db.clone();
     let session: &Session = req.ext().unwrap();
@@ -244,7 +268,7 @@ async fn api_get_register_invitation(req: Request<AppState>) -> tide::Result<Res
 }
 
 async fn api_get_user(req: Request<AppState>) -> tide::Result<Response> {
-    require_perm(&req, vec![1, 2, 3]).await?;
+    // require_perm(&req, vec![1, 2, 3]).await?;
     let state = req.state();
     let id = req.param("id").unwrap();
     if let Some(user) = User::by_id(&state.db, &id.to_string()).await {
