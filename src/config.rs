@@ -182,7 +182,8 @@ impl EmailConfig {
             let body = EMAIL_CN.replace("%url%", &format!("{}/code/{}", config.base_url, code))
                 .replace("%code%", &code.to_string())
                 .replace("%name%", NAME_CN)
-                .replace("%username%", &name);
+                .replace("%username%", &name)
+                .replace("%expire%", "60");
 
             EmailBuilder::new()
                 .to((to_email, name))
@@ -194,7 +195,8 @@ impl EmailConfig {
             let body = EMAIL_EN.replace("%url%", &format!("{}/code/{}", config.base_url, code))
                 .replace("%code%", &code.to_string())
                 .replace("%name%", NAME_EN)
-                .replace("%username%", &name);
+                .replace("%username%", &name)
+                .replace("%expire%", "60");
             EmailBuilder::new()
                 .to((to_email, name))
                 .from((self.from.as_str(), format!("[{}]", NAME_EN)))

@@ -307,7 +307,7 @@ fn random_code(length: usize) -> String {
     let mut rng = rand::thread_rng();
     let mut code = String::new();
     for _ in 0..length {
-        code.push(rng.gen_range(0..10) as u8 as char);
+        code += (rng.gen_range(0..10) as u8).to_string().as_str();
     }
     code
 }
