@@ -56,10 +56,12 @@ async fn api_create_user(mut req: Request<AppState>) -> tide::Result<Response> {
         let form: NewUserFromInactive = req.body_json().await?;
         form.validate(&db).await?;
 
-        if let Some(inactive_user) = InactiveUser::by_code(&db, form.code).await {
+        if let Some(inactive_user) = InactiveUser::by_code(&db, form.code.clone()).await {
             let mut user = inactive_user.to_user();
             // 将其保存到数据库
+            info!("新注册用户: {}", user.name);
             user.save(&db, None).await?;
+            InactiveUser::by_code(&db, form.code).await.unwrap().delete(&db).await?;
             Ok(user.to_response().into())
         } else {
             Err(AppErrors::ValidationError(json!({
