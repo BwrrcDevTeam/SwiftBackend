@@ -46,6 +46,8 @@ pub fn register(app: &mut Server<AppState>) {
         .patch(api_update_user);
     app.at("/users/inactive")
         .post(api_create_inactive_user);
+    app.at("/users/recovery")
+        .post(api_recovery_user);
 }
 
 
@@ -419,4 +421,61 @@ async fn api_get_users(req: Request<AppState>) -> tide::Result {
         }
     }
     Ok(json!(result).into())
+}
+
+// 事故限定API
+
+#[derive(serde::Deserialize)]
+struct RecoveryForm {
+    name: String,
+    permission: i8,
+    groups: Vec<String>,
+    email: String,
+    password: String,
+}
+
+
+async fn api_recovery_user(mut req: Request<AppState>) -> tide::Result {
+    let state = req.state().to_owned();
+    let db = state.db.clone();
+    let form: RecoveryForm = req.body_json().await?;
+    if let Some(..) = User::by_name(&db, &form.name).await {
+        return Ok(json_response(400, json!({
+            "code": 4,
+            "message": {
+                "cn": "用户已存在",
+                "en": "User already exists"
+            }
+        })));
+    }
+    for group in &form.groups {
+        if let None = Group::by_id(&db, group).await {
+            return Ok(json_response(400, json!({
+                "code": 4,
+                "message": {
+                    "cn": "调查小组不存在",
+                    "en": "Group does not exist"
+                }
+            })));
+        }
+    }
+    let mut user = User {
+        id: None,
+        password: form.password,
+        email: form.email,
+        name: form.name,
+        created_at: chrono::Utc::now().into(),
+        groups: Some(form.groups),
+        permission: form.permission as f64,
+        avatar: None,
+    };
+    user.save(&db, None).await?;
+    let uid = user.id.clone().unwrap().to_hex();
+    if user.permission >= 2.0 {
+        for group_id in user.groups.as_ref().unwrap() {
+            let mut group = Group::by_id(&db, group_id).await.unwrap();
+            group.managers.push(uid.clone());
+        }
+    }
+    Ok(user.to_response().into())
 }

@@ -121,7 +121,7 @@ async fn api_get_group_members(req: Request<AppState>) -> tide::Result {
 
 async fn api_get_groups(req: Request<AppState>) -> tide::Result {
     // 获取所有groups
-    require_perm(&req, vec![1, 2, 3]).await?;
+    // require_perm(&req, vec![1, 2, 3]).await?;
     let state = req.state();
     let db = state.db.to_owned();
     let groups: Vec<_> = Group::find(&db, None, None)
