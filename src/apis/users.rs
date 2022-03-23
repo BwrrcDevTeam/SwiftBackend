@@ -475,6 +475,7 @@ async fn api_recovery_user(mut req: Request<AppState>) -> tide::Result {
         for group_id in user.groups.as_ref().unwrap() {
             let mut group = Group::by_id(&db, group_id).await.unwrap();
             group.managers.push(uid.clone());
+            group.save(&db, None).await?;
         }
     }
     Ok(user.to_response().into())
