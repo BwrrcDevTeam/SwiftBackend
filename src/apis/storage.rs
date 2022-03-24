@@ -13,7 +13,8 @@ pub fn register(app: &mut Server<AppState>) {
     app.at("/storage/inline/:id").get(api_download_inline);
     app.at("/storage/download/:id").get(api_download_attachment);
     app.at("/storage/inline/:id/w/:width/h/:height").get(api_download_inline_resized);
-    app.at("/storage/:id").delete(api_delete);
+    app.at("/storage/:id").delete(api_delete)
+        .get(api_get_info);
 }
 
 // POST /storage
@@ -265,6 +266,24 @@ async fn api_download_inline_resized(req: Request<AppState>) -> tide::Result {
                 }
             })))
         }
+    } else {
+        Ok(json_response(404, json!({
+            "code": 404,
+            "message": {
+                "cn": "附件不存在",
+                "en": "Attachment not found"
+            }
+        })))
+    }
+}
+
+async fn api_get_info(req: Request<AppState>) -> tide::Result {
+    require_perm(&req, vec![1, 2, 3]).await?;
+    let state = req.state();
+    let db = state.db.to_owned();
+    let id = req.param("id").unwrap().to_owned();
+    if let Some(storage) = Storage::by_id(&db, &id).await {
+        Ok(storage.to_response().into())
     } else {
         Ok(json_response(404, json!({
             "code": 404,

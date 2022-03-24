@@ -114,10 +114,17 @@ async fn api_create_record(mut req: Request<AppState>) -> tide::Result {
         ).into(),
         collaborators: form.collaborators.unwrap_or(vec![]),
         description: form.description.unwrap_or("".to_string()),
+        weather: form.weather,
         group: position.belongs_to,
         user: session.user.to_owned().unwrap(),
         project: project.id.unwrap().to_hex(),
         attachments: form.attachments.unwrap_or(vec![]),
+        num_of_nests: None,
+        return_time: None,
+        return_direction: form.return_direction,
+        nest_height: form.nest_height,
+        nest_area: form.nest_area,
+        nest_material: form.nest_material
     };
     record.save(&db, None).await?;
     Ok(record.to_response().into())
@@ -192,6 +199,26 @@ async fn api_update_record_by_id(mut req: Request<AppState>) -> tide::Result {
     if let Some(attachments) = form.attachments {
         record.attachments = attachments;
     }
+    if let Some(weather) = form.weather {
+        record.weather = weather;
+    }
+    if let Some(return_direction) = form.return_direction {
+        record.return_direction = Some(return_direction);
+    }
+    if let Some(nest_height) = form.nest_height {
+        record.nest_height = Some(nest_height);
+    }
+    if let Some(nest_area) = form.nest_area {
+        record.nest_area = Some(nest_area);
+    }
+    if let Some(nest_material) = form.nest_material {
+        record.nest_material = Some(nest_material);
+    }
+    if let Some(return_time) = form.return_time {
+        record.return_time = Some(return_time);
+    }
+
+
     record.save(&db, None).await?;
 
     Ok(record.to_response().into())
@@ -292,12 +319,26 @@ async fn api_update_record_draft(mut req: Request<AppState>) -> tide::Result {
             time: None,
             description: None,
             user: session.user.unwrap(),
+            num_of_nests: None,
+            return_time: None,
+            return_direction: None,
+            nest_height: None,
+            nest_area: None,
+            nest_material: None,
+            weather: None
         });
     draft.position = form.position;
     draft.collaborators = form.collaborators;
     draft.num = form.num;
     draft.time = form.time;
     draft.description = form.description;
+    draft.num_of_nests = form.num_of_nests;
+    draft.return_time = form.return_time;
+    draft.return_direction = form.return_direction;
+    draft.nest_height = form.nest_height;
+    draft.nest_area = form.nest_area;
+    draft.nest_material = form.nest_material;
+    draft.weather = form.weather;
     draft.save(&db, None).await?;
     Ok(json!({}).into())
 }

@@ -84,6 +84,12 @@ pub struct NewRecordForm {
     pub collaborators: Option<Vec<String>>,
     pub attachments: Option<Vec<String>>,
     pub description: Option<String>,
+    pub nest_area: Option<f64>,
+    pub nest_height: Option<f64>,
+    pub nest_material: Option<String>,
+    pub return_time: Option<String>,
+    pub return_direction: Option<String>,
+    pub weather: String,
 }
 
 impl NewRecordForm {
@@ -141,6 +147,12 @@ pub struct UpdateRecordForm {
     pub attachments: Option<Vec<String>>,
     pub description: Option<String>,
     pub position: Option<String>,
+    pub nest_area: Option<f64>,
+    pub nest_height: Option<f64>,
+    pub nest_material: Option<String>,
+    pub return_time: Option<String>,
+    pub return_direction: Option<String>,
+    pub weather: Option<String>,
 }
 
 impl UpdateRecordForm {
@@ -203,4 +215,11 @@ pub struct UpdateDraftForm {
     pub attachments: Option<Vec<String>>,
     pub description: Option<String>,
     pub position: Option<String>,
+    pub nest_area: Option<f64>,
+    pub nest_height: Option<f64>,
+    pub nest_material: Option<String>,
+    pub return_time: Option<String>,
+    pub return_direction: Option<String>,
+    pub weather: Option<String>,
+    pub num_of_nests: Option<i16>,
 }
