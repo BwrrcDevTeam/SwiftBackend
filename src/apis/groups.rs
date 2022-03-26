@@ -305,7 +305,7 @@ async fn api_apply_invitation(req: Request<AppState>) -> tide::Result {
             }
             let mut groups = user.groups.to_owned().unwrap_or(vec![]);
             groups.extend(invitation.groups.clone().unwrap());
-            user.groups = Some(groups);
+            user.groups = Some(groups.clone());
             user.save(&db, None).await?;
             if invitation.permission == 2 {
                 user.permission = 2.0;
@@ -318,7 +318,12 @@ async fn api_apply_invitation(req: Request<AppState>) -> tide::Result {
                 user.save(&db, None).await?;
             }
             invitation.delete(&db).await?;
-            Ok(tide::Response::new(204))
+            let mut resp = Vec::new();
+            for group_id in groups {
+                let group = Group::by_id(&db, &group_id).await.unwrap();
+                resp.push(group.to_response());
+            }
+            Ok(json!(resp).into())
         } else {
             Ok(json_response(404, json!({
                 "code": 1004,
