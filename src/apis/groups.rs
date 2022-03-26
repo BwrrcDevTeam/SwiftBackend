@@ -26,6 +26,8 @@ pub fn register(app: &mut Server<AppState>) {
     app.at("/groups/:group_id/members").get(api_get_group_members);
     app.at("/groups/:group_id/members/:user_id").delete(api_delete_group_member);
     app.at("/groups/invitations").post(api_create_invitation);
+    app.at("/groups/invitations/:code").get(api_check_invitation);
+    app.at("/groups/invitations/:code/apply").get(api_apply_invitation);
 }
 
 // async fn api_check_invitation(req: Request<AppState>) -> tide::Result {
@@ -258,7 +260,81 @@ async fn api_create_invitation(mut req: Request<AppState>) -> tide::Result {
         permission: form.permission,
     };
     invitation.save(&db, None).await?;
-    return Ok(json! ({
+    return Ok(json!({
         "code": code
     }).into());
+}
+
+async fn api_check_invitation(req: Request<AppState>) -> tide::Result {
+    require_perm(&req, vec![1, 2, 3]).await?;
+    let state = req.state();
+    let db = state.db.to_owned();
+    let code = req.param("code").unwrap().to_owned();
+    let invitation = Invitation::by_code(&db, code.clone()).await;
+    if let Some(invitation) = invitation {
+        Ok(invitation.to_response().into())
+    } else {
+        Ok(json_response(404, json!({
+            "code": 1001,
+            "message": {
+                "cn": "邀请不存在",
+                "en": "Invitation not found"
+            }
+        })))
+    }
+}
+
+async fn api_apply_invitation(req: Request<AppState>) -> tide::Result {
+    require_perm(&req, vec![1, 2, 3]).await?;
+    let state = req.state();
+    let db = state.db.to_owned();
+    let code = req.param("code").unwrap().to_owned();
+    let invitation = Invitation::by_code(&db, code.clone()).await;
+    return if let Some(invitation) = invitation {
+        let session: &Session = req.ext().unwrap();
+        let user = User::by_id(&db, session.user.as_ref().unwrap()).await;
+        if let Some(mut user) = user {
+            if user.groups.is_some() {
+                return Ok(json_response(400, json!({
+                    "code": 1003,
+                    "message": {
+                        "cn": "用户已经加入小组",
+                        "en": "User already in group"
+                    }
+                })));
+            }
+            let mut groups = user.groups.to_owned().unwrap_or(vec![]);
+            groups.extend(invitation.groups.clone().unwrap());
+            user.groups = Some(groups);
+            user.save(&db, None).await?;
+            if invitation.permission == 2 {
+                user.permission = 2.0;
+                // 将用户加入小组的管理员列表中
+                for group_id in invitation.groups.as_ref().unwrap_or(&vec![]) {
+                    let mut group = Group::by_id(&db, group_id).await.unwrap();
+                    group.managers.push(user.id.to_owned().unwrap().to_hex());
+                    group.save(&db, None).await?;
+                }
+                user.save(&db, None).await?;
+            }
+            invitation.delete(&db).await?;
+            Ok(tide::Response::new(204))
+        } else {
+            Ok(json_response(404, json!({
+                "code": 1004,
+                "message": {
+                    "cn": "用户不存在",
+                    "en": "User not found"
+                }
+            })))
+        }
+    } else {
+        Ok(json_response(404, json!({
+            "code": 1001,
+            "message": {
+                "cn": "邀请不存在",
+                "en": "Invitation not found"
+            }
+        })))
+    };
 }
