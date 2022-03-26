@@ -4,12 +4,14 @@ use tide::{Request, Server};
 use wither::bson::doc;
 use crate::apis::{json_response, require_perm};
 use crate::AppState;
-use crate::forms::groups::{CreateGroupForm, UpdateGroupForm};
+use crate::forms::groups::{CreateGroupForm, JoinInvitationForm, UpdateGroupForm};
 use crate::models::groups::Group;
 use crate::models::{SearchById, Session};
 use crate::models::users::User;
 use wither::Model;
 use futures::StreamExt;
+use crate::apis::users::random_string;
+use crate::models::invitations::Invitation;
 
 pub fn register(app: &mut Server<AppState>) {
     // 未来实现
@@ -23,6 +25,7 @@ pub fn register(app: &mut Server<AppState>) {
         .patch(api_update_group);
     app.at("/groups/:group_id/members").get(api_get_group_members);
     app.at("/groups/:group_id/members/:user_id").delete(api_delete_group_member);
+    app.at("/groups/invitations").post(api_create_invitation);
 }
 
 // async fn api_check_invitation(req: Request<AppState>) -> tide::Result {
@@ -233,4 +236,29 @@ pub async fn api_delete_group_member(req: Request<AppState>) -> tide::Result {
             }
         })))
     }
+}
+
+
+async fn api_create_invitation(mut req: Request<AppState>) -> tide::Result {
+    require_perm(&req, vec![2, 3]).await?;
+    let state = req.state();
+    let db = state.db.to_owned();
+    let form: JoinInvitationForm = req.body_json().await?;
+    form.validate(&db).await?;
+    let code = random_string(10);
+    let expire_at = chrono::DateTime::from_utc(
+        chrono::NaiveDateTime::from_timestamp(form.expire_at, 0),
+        chrono::Utc,
+    );
+    let mut invitation = Invitation {
+        id: None,
+        code: code.to_owned(),
+        expire_at: expire_at.into(),
+        groups: Some(form.groups),
+        permission: form.permission,
+    };
+    invitation.save(&db, None).await?;
+    return Ok(json! ({
+        "code": code
+    }).into());
 }

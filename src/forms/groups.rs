@@ -1,4 +1,3 @@
-
 use serde_json::json;
 use wither::bson::doc;
 use wither::mongodb::Database;
@@ -7,6 +6,7 @@ use crate::forms::positions::UpdatePositionForm;
 use crate::models::SearchById;
 use crate::models::users::User;
 use serde::Deserialize;
+use crate::models::groups::Group;
 
 #[derive(Deserialize)]
 pub struct CreateGroupForm {
@@ -37,7 +37,7 @@ impl CreateGroupForm {
                     "cn": "数据库查询失败",
                     "en": "Database query failed",
                 }
-            })))
+            })));
         }
         if count.unwrap() > 0 {
             return Err(AppErrors::ValidationError(json!({
@@ -74,7 +74,7 @@ impl UpdateGroupForm {
                         "cn": "数据库查询失败",
                         "en": "Database query failed",
                     }
-                })))
+                })));
             }
             if count.unwrap() > 0 {
                 return Err(AppErrors::ValidationError(json!({
@@ -106,6 +106,44 @@ impl UpdateGroupForm {
                     })));
                 }
             }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct JoinInvitationForm {
+    pub expire_at: i64,
+    pub groups: Vec<String>,
+    pub permission: i8,
+}
+
+impl JoinInvitationForm {
+    pub async fn validate(&self, db: &Database) -> Result<(), AppErrors> {
+        // 检查小组是否存在
+        for group in &self.groups {
+            if let None = Group::by_id(&db, group).await {
+                return Err(AppErrors::ValidationError(json!({
+                    "code": 4,
+                    "message": {
+                        "cn": "小组不存在",
+                        "en": "Group does not exist",
+                    },
+                    "description": {
+                        "id": group
+                    }
+                })));
+            }
+        }
+        // 检查权限是否合理
+        if self.permission != 1 || self.permission != 2 {
+            return Err(AppErrors::ValidationError(json!({
+                "code": 4,
+                "message": {
+                    "cn": "权限不合法",
+                    "en": "Permission is not valid",
+                }
+            })));
         }
         Ok(())
     }

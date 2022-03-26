@@ -43,7 +43,8 @@ pub fn register(app: &mut Server<AppState>) {
         .get(api_get_register_invitation);
     app.at("/users/:id")
         .get(api_get_user)
-        .patch(api_update_user);
+        .patch(api_update_user)
+        .delete(api_delete_user);
     app.at("/users/inactive")
         .post(api_create_inactive_user);
     app.at("/users/recovery")
@@ -207,7 +208,7 @@ async fn api_logout(req: Request<AppState>) -> tide::Result<Response> {
 }
 
 
-fn random_string(len: usize) -> String {
+pub fn random_string(len: usize) -> String {
     let mut rng = rand::thread_rng();
     let mut s = String::new();
     for _ in 0..len {
@@ -329,6 +330,24 @@ async fn api_update_user(mut req: Request<AppState>) -> tide::Result<Response> {
 
         // 保存更改
         user.save(&db, None).await?;
+        Ok(user.to_response().into())
+    } else {
+        Err(AppErrors::ValidationError(json!({
+            "code": 4,
+            "message": {
+                "cn": "用户不存在",
+                "en": "User does not exist"
+            }
+        })).into())
+    }
+}
+
+async fn api_delete_user(req: Request<AppState>) -> tide::Result<Response> {
+    require_perm(&req, vec![3]).await?;
+    let state = req.state();
+    let id = req.param("id").unwrap().to_owned();
+    if let Some(user) = User::by_id(&state.db, &id).await {
+        user.delete(&state.db).await?;
         Ok(user.to_response().into())
     } else {
         Err(AppErrors::ValidationError(json!({
