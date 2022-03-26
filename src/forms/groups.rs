@@ -136,7 +136,7 @@ impl JoinInvitationForm {
             }
         }
         // 检查权限是否合理
-        if self.permission != 1 || self.permission != 2 {
+        if self.permission != 1 && self.permission != 2 {
             return Err(AppErrors::ValidationError(json!({
                 "code": 4,
                 "message": {
