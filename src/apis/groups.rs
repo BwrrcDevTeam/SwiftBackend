@@ -119,7 +119,7 @@ async fn api_get_group_members(req: Request<AppState>) -> tide::Result {
     let users = User::by_group(&db, &group_id).await;
     let mut result = Vec::new();
     for user in users {
-        result.push(user.to_response());
+        result.push(user.to_response(&db).await);
     }
     Ok(json!(result).into())
 }

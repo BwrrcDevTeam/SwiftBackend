@@ -37,6 +37,8 @@ pub struct Record {
     pub nest_area: Option<f64>,
     // 巢材
     pub nest_material: Option<String>,
+    // 是否被推荐
+    pub is_recommended: Option<bool>,
 }
 
 impl SearchById for Record {}

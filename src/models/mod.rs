@@ -79,7 +79,7 @@ impl Session {
                 fingerprint: self.fingerprint.clone(),
                 login: self.login,
                 permission: self.permission,
-                user: Some(User::by_id(db, user_id).await.unwrap().to_response()),
+                user: Some(User::by_id(db, user_id).await.unwrap().to_response(&db).await),
                 expire_at: self.expire_at.timestamp(),
                 ip: self.ip.clone(),
             }

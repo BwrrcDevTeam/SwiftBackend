@@ -124,7 +124,8 @@ async fn api_create_record(mut req: Request<AppState>) -> tide::Result {
         return_direction: form.return_direction,
         nest_height: form.nest_height,
         nest_area: form.nest_area,
-        nest_material: form.nest_material
+        nest_material: form.nest_material,
+        is_recommended: None
     };
     record.save(&db, None).await?;
     Ok(record.to_response().into())

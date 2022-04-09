@@ -6,6 +6,7 @@ use serde::{Serialize, Deserialize};
 use serde_json::json;
 use crate::models::SearchById;
 use futures::StreamExt;
+use crate::models::groups::Group;
 
 #[derive(Debug, Model, Serialize, Deserialize, Clone)]
 #[model(collection_name = "users")]
@@ -46,14 +47,18 @@ impl User {
             None
         }
     }
-    pub fn to_response(&self) -> serde_json::Value {
+    pub async fn to_response(&self, db: &Database) -> serde_json::Value {
+        let mut groups = Vec::new();
+        for group_id in self.groups.as_ref().unwrap_or(&Vec::new()) {
+            groups.push(Group::by_id(&db, group_id).await.unwrap().to_response())
+        }
         json!(UserResponse {
             id: self.id.clone().unwrap().to_string(),
             name: self.name.clone(),
             email: self.email.clone(),
             permission: self.permission as i8,
             created_at: self.created_at.timestamp(),
-            groups: self.groups.clone(),
+            groups: groups,
             avatar: self.avatar.clone(),
         })
     }
@@ -87,8 +92,7 @@ pub struct UserResponse {
     pub permission: i8,
     pub created_at: i64,
     // 变成时间戳
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub groups: Option<Vec<String>>,
+    pub groups: Vec<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
 }

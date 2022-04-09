@@ -77,7 +77,7 @@ async fn api_create_user(mut req: Request<AppState>) -> tide::Result<Response> {
                 }
             }
             InactiveUser::by_code(&db, form.code).await.unwrap().delete(&db).await?;
-            Ok(user.to_response().into())
+            Ok(user.to_response(&db).await.into())
         } else {
             Err(AppErrors::ValidationError(json!({
                 "code": 4,
@@ -94,7 +94,7 @@ async fn api_create_user(mut req: Request<AppState>) -> tide::Result<Response> {
         let mut user = form.to_user();
         // 将其保存到数据库
         user.save(&db, None).await?;
-        Ok(user.to_response().into())
+        Ok(user.to_response(&db).await.into())
     } else {
         Err(AppErrors::CrossPermissionError(session.permission, vec![0, 3]).into())
     }
@@ -121,7 +121,7 @@ async fn api_check_email(mut req: Request<AppState>) -> tide::Result<Response> {
     let users = User::by_email(&db, &email.to_string()).await;
     let mut resp = Vec::new();
     for user in users {
-        resp.push(user.to_response());
+        resp.push(user.to_response(&db).await);
     }
     Ok(json!(resp).into())
 }
@@ -144,7 +144,7 @@ async fn api_check_name(mut req: Request<AppState>) -> tide::Result<Response> {
         }
     })))?;
     if let Some(user) = User::by_name(&db, &name.to_string()).await {
-        Ok(json!(user.to_response()).into())
+        Ok(json!(user.to_response(&db).await).into())
     } else {
         Ok(json_response(404, json!({
             "code": 1001,
@@ -173,7 +173,7 @@ async fn api_login(mut req: Request<AppState>) -> tide::Result<Response> {
         session.user = Some(user.id.as_ref().unwrap().to_hex());
         session.save(&db, None).await?;
         let mut resp = Response::new(200);
-        resp.set_body(user.to_response());
+        resp.set_body(user.to_response(&db).await);
         Ok(resp)
     } else {
         Err(AppErrors::ValidationError(json!({
@@ -275,7 +275,7 @@ async fn api_get_user(req: Request<AppState>) -> tide::Result<Response> {
     let state = req.state();
     let id = req.param("id").unwrap();
     if let Some(user) = User::by_id(&state.db, &id.to_string()).await {
-        Ok(user.to_response().into())
+        Ok(user.to_response(&state.db).await.into())
     } else {
         Err(AppErrors::ValidationError(json!({
             "code": 4,
@@ -330,7 +330,7 @@ async fn api_update_user(mut req: Request<AppState>) -> tide::Result<Response> {
 
         // 保存更改
         user.save(&db, None).await?;
-        Ok(user.to_response().into())
+        Ok(user.to_response(&db).await.into())
     } else {
         Err(AppErrors::ValidationError(json!({
             "code": 4,
@@ -348,7 +348,7 @@ async fn api_delete_user(req: Request<AppState>) -> tide::Result<Response> {
     let id = req.param("id").unwrap().to_owned();
     if let Some(user) = User::by_id(&state.db, &id).await {
         user.delete(&state.db).await?;
-        Ok(user.to_response().into())
+        Ok(user.to_response(&state.db).await.into())
     } else {
         Err(AppErrors::ValidationError(json!({
             "code": 4,
@@ -436,7 +436,7 @@ async fn api_get_users(req: Request<AppState>) -> tide::Result {
     let mut result = Vec::new();
     for user in users {
         if let Ok(user) = user {
-            result.push(user.to_response());
+            result.push(user.to_response(&db).await);
         }
     }
     Ok(json!(result).into())
@@ -497,5 +497,5 @@ async fn api_recovery_user(mut req: Request<AppState>) -> tide::Result {
             group.save(&db, None).await?;
         }
     }
-    Ok(user.to_response().into())
+    Ok(user.to_response(&db).await.into())
 }
